@@ -88,17 +88,6 @@ supabase/
 - **Testável**: os serviços recebem as dependências por construtor, então os testes rodam em memória sem emulador e sem rede.
 - **Regras em um só lugar no cliente**: permissões (`domain/rules/permissions.ts`) valem tanto para esconder botões quanto para bloquear a operação no serviço.
 
-### O que a migração para o Supabase provou (e o que não provou)
-
-A troca de SQLite por Supabase mexeu em `infrastructure/` e em **uma linha** de composição. `AnimalService`, todas as telas e os testes de animais ficaram intactos — a inversão de dependência funcionou como prometido.
-
-Mas ela não foi de graça, e vale registrar o que o desenho original não previa:
-
-- **Autenticação não é persistência.** `UserRepository` perdeu `findByEmailWithCredentials` e `updateCredentials`, e `AuthService` foi reescrito sobre uma porta nova (`AuthProvider`). Trocar *onde os dados moram* é barato; trocar *quem responde pela identidade* não é.
-- **A regra agora vive em dois lugares.** As policies de RLS em `supabase/migrations/0001_init.sql` espelham `domain/rules/permissions.ts`. A do cliente esconde botão; a do servidor é a que vale. **Mudou uma, mude a outra** — divergência aqui é bug silencioso.
-- **Transação virou trigger.** `AnimalRepository.create` gravava animal e timeline atomicamente. Do cliente seriam dois requests; a atomicidade voltou como trigger no Postgres.
-- **O último administrador virou corrida.** Com um processo só, checar antes de gravar bastava. Com rede, não: a garantia é o trigger `guard_profile_update`.
-
 ## Modelo de dados
 
 ```
