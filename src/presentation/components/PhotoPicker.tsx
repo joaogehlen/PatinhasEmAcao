@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-nati
 
 import { persistPhoto } from '@/infrastructure/photoStorage';
 
+import { describeError } from '../format';
 import { colors, radius, spacing } from '../theme';
 import { Icon } from './Icon';
 import { AppText, Button, IconButton } from './ui';
@@ -43,12 +44,13 @@ export function PhotoPicker({ uri, onChange }: PhotoPickerProps) {
 
     setBusy(true);
     try {
-      // No web não há sistema de arquivos persistente; usamos a URI direto.
-      const pickedUri = result.assets[0]!.uri;
-      onChange(Platform.OS === 'web' ? pickedUri : await persistPhoto(pickedUri));
+      // A foto sobe para o Storage e o que fica no banco é a URL pública: o
+      // registro é lido por outras pessoas, em outros aparelhos.
+      onChange(await persistPhoto(result.assets[0]!.uri));
     } catch (error) {
-      console.error(error);
-      Alert.alert('Erro', 'Não foi possível salvar a foto.');
+      // A mensagem real distingue "sem internet" de "arquivo não encontrado" —
+      // com upload em rede, essa diferença passou a importar para o usuário.
+      Alert.alert('Não foi possível enviar a foto', describeError(error).message);
     } finally {
       setBusy(false);
     }
@@ -93,7 +95,7 @@ export function PhotoPicker({ uri, onChange }: PhotoPickerProps) {
 }
 
 const styles = StyleSheet.create({
-  frame: { aspectRatio: 4 / 3, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.primarySoft },
+  frame: { aspectRatio: 4 / 3, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
   center: { alignItems: 'center', justifyContent: 'center' },
   overlayActions: { position: 'absolute', right: spacing.md, bottom: spacing.md, flexDirection: 'row', gap: spacing.sm },
   empty: {
@@ -101,15 +103,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     padding: spacing.lg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#F5B899',
+    borderColor: colors.borderStrong,
   },
   emptyIcon: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,

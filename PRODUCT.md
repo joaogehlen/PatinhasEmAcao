@@ -39,10 +39,14 @@ O app acompanha o animal individual do primeiro avistamento até a adoção, em 
 
 **Restrições técnicas:**
 - Expo SDK 57 / React Native, distribuído via Expo Go — sem código nativo customizado.
-- Dados 100% locais em SQLite no dispositivo. Não há backend, sincronização entre aparelhos, nem notificações push. A arquitetura foi desenhada para trocar o repositório por um backend depois, mas isso não está no escopo atual.
-- Autenticação local com hash SHA-256 salgado; protótipo, não produção.
+- **Backend no Supabase** (Postgres + Auth + Storage). Os dados são compartilhados entre aparelhos: a denúncia do morador aparece para o voluntário.
+- **O app é online-only.** Sem internet não é possível denunciar, e isso contradiz o contexto de uso ("a denúncia acontece na rua, a conexão pode estar ruim ou ausente"). Foi uma decisão consciente, tomada em 14/09/2026, para caber na Sprint 2: o app avisa com clareza em vez de fingir que gravou. Fila local de denúncias é a próxima parada quando houver fôlego.
+- As permissões existem em dois lugares: `src/domain/rules/permissions.ts` (esconde botão) e as policies de RLS no Postgres (regra que vale). Divergência entre as duas é bug silencioso.
+- Autenticação pelo Supabase Auth; nenhuma senha é processada ou guardada pelo app.
 - Aparelho-alvo é um celular modesto — desempenho e peso de imagem importam.
 - Idioma único: português do Brasil.
+- Sem notificações push.
+- **O plano gratuito do Supabase pausa o projeto após 7 dias sem atividade.** Com a demo para a banca, isso é risco real de apresentação.
 
 **Vocabulário do produto:** *denúncia* (o registro feito pelo morador), *resgate*, *jornada*/*timeline* (a sequência de status), *morador* / *voluntário* / *administrador* (os três perfis).
 

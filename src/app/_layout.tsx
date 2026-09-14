@@ -1,10 +1,11 @@
 import {
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
+  Archivo_400Regular,
+  Archivo_600SemiBold,
+  Archivo_700Bold,
+  Archivo_800ExtraBold,
   useFonts,
-} from '@expo-google-fonts/nunito';
+} from '@expo-google-fonts/archivo';
+import { ChivoMono_400Regular, ChivoMono_700Bold } from '@expo-google-fonts/chivo-mono';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -18,10 +19,12 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
+    Archivo_400Regular,
+    Archivo_600SemiBold,
+    Archivo_700Bold,
+    Archivo_800ExtraBold,
+    ChivoMono_400Regular,
+    ChivoMono_700Bold,
   });
 
   if (!fontsLoaded && !fontError) return null;
@@ -43,6 +46,7 @@ function RootNavigator() {
   if (isLoading) return null;
 
   const isLoggedIn = user !== null;
+  const isGuest = user?.isGuest ?? false;
 
   return (
     <>
@@ -57,11 +61,16 @@ function RootNavigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Protected guard={!isLoggedIn}>
+        {/* O convidado também alcança estas telas: é por elas que ele vira
+            uma conta de verdade sem perder as denúncias que já fez. */}
+        <Stack.Protected guard={!isLoggedIn || isGuest}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
           <Stack.Screen name="sign-up" options={{ title: '' }} />
         </Stack.Protected>
 
+        {/* O convidado também tem sessão, então entra aqui: o mapa e a
+            denúncia são dele. O que ele não pode fazer some pelas guardas
+            de permissão abaixo, não pelo estado de login. */}
         <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -69,9 +78,20 @@ function RootNavigator() {
             options={{ title: '', headerTransparent: true, headerTintColor: colors.white }}
           />
           <Stack.Screen name="animals/new" options={{ title: 'Registrar animal', presentation: 'modal' }} />
-          <Stack.Screen name="animals/edit/[id]" options={{ title: 'Editar animal' }} />
-          <Stack.Screen name="profile/edit" options={{ title: 'Meus dados' }} />
-          <Stack.Screen name="profile/password" options={{ title: 'Alterar senha' }} />
+
+          <Stack.Protected guard={can('animal:update')}>
+            <Stack.Screen name="animals/edit/[id]" options={{ title: 'Editar animal' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={!isGuest}>
+            <Stack.Screen name="profile/edit" options={{ title: 'Meus dados' }} />
+            <Stack.Screen name="profile/password" options={{ title: 'Alterar senha' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('vaquinha:manage')}>
+            <Stack.Screen name="vaquinhas/new" options={{ title: 'Nova vaquinha', presentation: 'modal' }} />
+            <Stack.Screen name="vaquinhas/[id]" options={{ title: 'Editar vaquinha' }} />
+          </Stack.Protected>
 
           <Stack.Protected guard={can('user:manage')}>
             <Stack.Screen name="users/new" options={{ title: 'Novo usuário', presentation: 'modal' }} />

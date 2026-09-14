@@ -1,7 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,9 +14,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, fonts, gradients, radius, shadows, spacing, typography, type TypographyVariant } from '../theme';
+import { colors, fonts, radius, rules, shadows, spacing, typography, type TypographyVariant } from '../theme';
 import { Icon, type IconName } from './Icon';
-import { PawPrint } from './Illustrations';
 
 // ─── Texto ──────────────────────────────────────────────────────────────────
 
@@ -45,53 +44,66 @@ interface ButtonProps {
 }
 
 const BUTTON_FOREGROUND: Record<ButtonVariant, string> = {
-  primary: colors.white,
-  secondary: colors.primaryDark,
+  // Tinta escura sobre o âmbar: branco sobre âmbar reprova contraste.
+  primary: colors.onPrimary,
+  secondary: colors.primary,
   outline: colors.text,
   danger: colors.danger,
-  ghost: colors.primaryDark,
+  ghost: colors.primary,
 };
 
+/**
+ * Pressionar afunda a superfície: escala curta com mola contida, sem giro e
+ * sem brilho. É o único movimento autorado do app, e ele diz "recebi o
+ * toque" — não decora.
+ */
 export function Button({ title, onPress, variant = 'primary', icon, loading = false, disabled = false, style }: ButtonProps) {
   const isDisabled = disabled || loading;
   const foreground = BUTTON_FOREGROUND[variant];
+  const press = useRef(new Animated.Value(0)).current;
 
-  const content = (
-    <View style={styles.buttonContent}>
-      {loading ? (
-        <ActivityIndicator color={foreground} />
-      ) : (
-        <>
-          {icon && <Icon name={icon} size={20} color={foreground} />}
-          <AppText variant="button" color={foreground}>
-            {title}
-          </AppText>
-        </>
-      )}
-    </View>
-  );
+  const animate = (to: number) =>
+    Animated.spring(press, {
+      toValue: to,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: to === 0 ? 8 : 0,
+    }).start();
+
+  const stamp = {
+    transform: [{ scale: press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.975] }) }],
+  };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.button,
-        variant === 'primary' ? shadows.primary : buttonVariants[variant],
-        pressed && styles.pressed,
-        isDisabled && styles.disabled,
-        style,
-      ]}
-    >
-      {variant === 'primary' ? (
-        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradientFill}>
-          {content}
-        </LinearGradient>
-      ) : (
-        content
-      )}
-    </Pressable>
+    <Animated.View style={[stamp, style]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        onPress={onPress}
+        onPressIn={() => animate(1)}
+        onPressOut={() => animate(0)}
+        disabled={isDisabled}
+        style={[
+          styles.button,
+          variant === 'primary' ? styles.buttonPrimary : buttonVariants[variant],
+          variant === 'primary' && shadows.stamp,
+          isDisabled && styles.disabled,
+        ]}
+      >
+        <View style={styles.buttonContent}>
+          {loading ? (
+            <ActivityIndicator color={foreground} />
+          ) : (
+            <>
+              {icon && <Icon name={icon} size={18} color={foreground} />}
+              <AppText variant="button" color={foreground}>
+                {title}
+              </AppText>
+            </>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -103,9 +115,18 @@ interface IconButtonProps {
   size?: number;
 }
 
+/**
+ * `glass` é o botão que pousa sobre foto. No mundo claro ele era um véu
+ * branco; aqui é escuro, porque o ícone é claro — véu branco com ícone claro
+ * é botão invisível, e foi exatamente o que aconteceu sobre a foto do animal.
+ *
+ * Escuro também é a escolha mais segura sobre foto qualquer: uma imagem clara
+ * apaga um véu branco, e uma escura apaga o ícone claro que estaria nele.
+ */
 export function IconButton({ icon, onPress, accessibilityLabel, variant = 'soft', size = 44 }: IconButtonProps) {
-  const background = variant === 'glass' ? 'rgba(255,255,255,0.9)' : variant === 'primary' ? colors.primary : colors.surface;
-  const foreground = variant === 'primary' ? colors.white : colors.text;
+  const background =
+    variant === 'glass' ? 'rgba(14, 9, 7, 0.74)' : variant === 'primary' ? colors.primary : colors.surfaceAlt;
+  const foreground = variant === 'primary' ? colors.onPrimary : colors.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -114,6 +135,8 @@ export function IconButton({ icon, onPress, accessibilityLabel, variant = 'soft'
       style={({ pressed }) => [
         styles.iconButton,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: background },
+        // Fio de contorno para o botão sobreviver também a uma foto escura.
+        variant === 'glass' && { borderWidth: rules.hair, borderColor: 'rgba(247, 237, 228, 0.28)' },
         variant === 'primary' ? shadows.primary : shadows.card,
         pressed && styles.pressed,
       ]}
@@ -153,7 +176,7 @@ export function TextField({ label, icon, error, trailing, style, onFocus, onBlur
       >
         {icon && <Icon name={icon} size={20} color={focused ? colors.primary : colors.textMuted} />}
         <TextInput
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.placeholder}
           style={[styles.input, multiline && styles.inputMultiline, style]}
           onFocus={(event) => {
             setFocused(true);
@@ -210,7 +233,8 @@ interface ChipProps {
 }
 
 export function Chip({ label, selected, onPress, icon }: ChipProps) {
-  const foreground = selected ? colors.white : colors.textSoft;
+  // Selecionado o chip fica âmbar; branco sobre âmbar reprova contraste.
+  const foreground = selected ? colors.onPrimary : colors.textSoft;
   return (
     <Pressable
       accessibilityRole="button"
@@ -348,13 +372,8 @@ export function Pill({ label, icon, background, color }: { label: string; icon?:
   );
 }
 
-const AVATAR_GRADIENTS = [
-  ['#FF9A5C', '#E5532E'],
-  ['#3CC6B8', '#137A71'],
-  ['#9B7BF0', '#6D4AC2'],
-  ['#5AA9F8', '#1F66B8'],
-  ['#F6C453', '#D48A12'],
-] as const;
+/** Tons de iniciais para avatar, todos legíveis sobre a superfície quente. */
+const AVATAR_INKS = ['#FF7A45', '#E8D5BE', '#F2C94C', '#62BFEA', '#C3A2F0'] as const;
 
 export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
   const initials = name
@@ -363,16 +382,22 @@ export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
     .slice(0, 2)
     .map((part) => part[0]!.toUpperCase())
     .join('');
-  const palette = AVATAR_GRADIENTS[name.length % AVATAR_GRADIENTS.length]!;
+  const ink = AVATAR_INKS[name.length % AVATAR_INKS.length]!;
   return (
-    <LinearGradient
-      colors={palette}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: colors.surfaceAlt,
+        borderWidth: rules.hair,
+        borderColor: colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      <Text style={{ fontFamily: fonts.extrabold, fontSize: size * 0.38, color: colors.white }}>{initials}</Text>
-    </LinearGradient>
+      <Text style={{ fontFamily: fonts.semibold, fontSize: size * 0.36, color: ink }}>{initials}</Text>
+    </View>
   );
 }
 
@@ -418,7 +443,7 @@ export function EmptyState({ title, message, action }: EmptyStateProps) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIllustration}>
-        <PawPrint size={56} color={colors.primary} opacity={0.9} />
+        <Icon name="search" size={30} color={colors.textMuted} />
       </View>
       <AppText variant="heading" style={styles.centerText}>
         {title}
@@ -447,39 +472,41 @@ export function FormError({ message }: { message: string | null }) {
 
 const buttonVariants = StyleSheet.create({
   secondary: { backgroundColor: colors.primarySoft },
-  outline: { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
+  outline: { backgroundColor: colors.surfaceAlt, borderWidth: rules.hair, borderColor: colors.borderStrong },
   danger: { backgroundColor: colors.dangerSoft },
   ghost: { backgroundColor: 'transparent' },
 });
 
 const styles = StyleSheet.create({
-  button: { minHeight: 54, borderRadius: radius.md, overflow: 'hidden', justifyContent: 'center' },
-  gradientFill: { flex: 1, justifyContent: 'center' },
+  // 56dp: acima do piso de 44pt do iOS e de 48dp do Android com folga.
+  button: { minHeight: 56, borderRadius: radius.lg, overflow: 'hidden', justifyContent: 'center' },
+  buttonPrimary: { backgroundColor: colors.primary },
   buttonContent: {
-    minHeight: 54,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
   },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.45 },
   iconButton: { alignItems: 'center', justifyContent: 'center' },
   field: { gap: 6, marginBottom: spacing.lg },
+  // Superfície de vidro sobre a tinta: a elevação separa o campo do fundo.
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 54,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    gap: spacing.md,
+    minHeight: 56,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: rules.hair,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
   },
   inputWrapMultiline: { alignItems: 'flex-start', paddingVertical: spacing.md },
-  inputFocused: { borderColor: colors.primary, backgroundColor: '#FFFDFB' },
+  inputFocused: { borderColor: colors.primary },
   inputError: { borderColor: colors.danger },
   input: { flex: 1, fontFamily: fonts.semibold, fontSize: 16, color: colors.text, paddingVertical: spacing.md },
   inputMultiline: { minHeight: 96, textAlignVertical: 'top', paddingVertical: 0 },
@@ -488,17 +515,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 40,
     paddingHorizontal: spacing.lg,
     paddingVertical: 9,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: rules.hair,
     borderColor: colors.border,
   },
-  chipSelected: { backgroundColor: colors.text, borderColor: colors.text },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chipsScroll: { gap: spacing.sm, paddingRight: spacing.lg },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, ...shadows.card },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: rules.hair,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.md },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
   sectionIcon: {
@@ -509,16 +543,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  pill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
   pillText: { fontSize: 12, lineHeight: 16 },
   listItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
   listIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyIllustration: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: colors.primarySoft,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: rules.hair,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,

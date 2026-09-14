@@ -15,6 +15,25 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+/** Centavos para reais. Valores monetários circulam como inteiro no domínio. */
+export function formatMoney(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/**
+ * Texto digitado para centavos.
+ *
+ * Aceita "1.234,56", "1234,56" e "1234". Devolve null quando não dá para ler
+ * um número — o schema transforma isso em erro de campo.
+ */
+export function parseMoney(text: string): number | null {
+  const digits = text.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+  if (digits.trim() === '') return null;
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return null;
+  return Math.round(value * 100);
+}
+
 export function firstName(fullName: string): string {
   return fullName.trim().split(' ')[0] ?? fullName;
 }

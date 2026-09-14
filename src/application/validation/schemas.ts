@@ -59,9 +59,42 @@ export const registerSchema = userProfileSchema.omit({ role: true }).extend({ pa
 
 export const createUserSchema = userProfileSchema.extend({ password });
 
+/**
+ * Edição de perfil. Sem e-mail: ele é espelho de auth.users e só muda pelo
+ * fluxo de autenticação (com reconfirmação), nunca por update no perfil.
+ */
+export const userUpdateSchema = userProfileSchema.omit({ email: true });
+
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, 'Informe a senha.'),
+});
+
+/**
+ * Vaquinha. Valores chegam em centavos, como inteiro — a tela converte de
+ * reais na entrada e de volta na exibição. Dinheiro em ponto flutuante
+ * acumula erro de arredondamento.
+ */
+export const vaquinhaInputSchema = z.object({
+  title: z.string().trim().min(3, 'Informe o título (mínimo 3 letras).').max(80, 'Máximo de 80 caracteres.'),
+  description: z
+    .string()
+    .trim()
+    .min(10, 'Explique a campanha (mínimo 10 caracteres).')
+    .max(1000, 'Máximo de 1000 caracteres.'),
+  goalCents: z
+    .number({ message: 'Informe a meta.' })
+    .int('Valor inválido.')
+    .positive('A meta precisa ser maior que zero.')
+    .max(100_000_000, 'Meta acima do esperado.'),
+  raisedCents: z
+    .number({ message: 'Valor arrecadado inválido.' })
+    .int('Valor inválido.')
+    .min(0, 'O arrecadado não pode ser negativo.')
+    .max(100_000_000, 'Valor acima do esperado.'),
+  pixKey: optionalText(140),
+  animalId: z.string().uuid().nullable(),
+  active: z.boolean(),
 });
 
 export type AnimalInputData = z.infer<typeof animalInputSchema>;

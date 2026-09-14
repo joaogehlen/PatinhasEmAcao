@@ -25,6 +25,7 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [role, setRole] = useState<UserRole>(initial?.role ?? 'morador');
   const [password, setPassword] = useState('');
+  const isEditing = initial !== undefined;
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,11 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
         <Card>
           <SectionHeader title="Dados pessoais" icon="person" />
           <TextField label="Nome completo" icon="person" value={name} onChangeText={setName} error={fieldErrors.name} />
+          {/*
+            O e-mail é a identidade da conta no Supabase Auth, não um campo do
+            perfil: trocá-lo exige reconfirmação pelo fluxo de autenticação.
+            Fica visível, mas travado, na edição.
+          */}
           <TextField
             label="E-mail"
             icon="mail"
@@ -60,8 +66,15 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            editable={!isEditing}
+            style={isEditing ? { color: colors.textMuted } : undefined}
             error={fieldErrors.email}
           />
+          {isEditing && (
+            <AppText variant="caption" color={colors.textMuted}>
+              O e-mail não pode ser alterado por aqui.
+            </AppText>
+          )}
           <TextField
             label="Telefone (opcional)"
             icon="phone"

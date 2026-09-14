@@ -6,13 +6,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#16100E",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -25,7 +25,6 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-secure-store",
       [
         "expo-image-picker",
         {
@@ -35,7 +34,14 @@
       ],
       "expo-image",
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "O Patinhas em Ação usa sua localização para marcar no mapa onde o animal foi visto.",
+          "locationWhenInUsePermission": "O Patinhas em Ação usa sua localização para marcar no mapa onde o animal foi visto."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

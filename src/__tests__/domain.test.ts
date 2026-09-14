@@ -16,16 +16,32 @@ describe('máquina de estados do animal', () => {
 });
 
 describe('permissões por perfil', () => {
-  it('morador só pode registrar animais', () => {
-    expect(hasPermission({ role: 'morador' }, 'animal:create')).toBe(true);
-    expect(hasPermission({ role: 'morador' }, 'animal:update')).toBe(false);
-    expect(hasPermission({ role: 'morador' }, 'user:list')).toBe(false);
+  const morador = { role: 'morador', isGuest: false } as const;
+  const admin = { role: 'admin', isGuest: false } as const;
+  const convidado = { role: 'morador', isGuest: true } as const;
+
+  it('morador registra, vê o catálogo e as vaquinhas, mas não edita', () => {
+    expect(hasPermission(morador, 'animal:create')).toBe(true);
+    expect(hasPermission(morador, 'animal:viewAll')).toBe(true);
+    expect(hasPermission(morador, 'vaquinha:view')).toBe(true);
+    expect(hasPermission(morador, 'animal:update')).toBe(false);
+    expect(hasPermission(morador, 'animal:changeStatus')).toBe(false);
+    expect(hasPermission(morador, 'user:list')).toBe(false);
   });
 
-  it('voluntário atualiza animais mas não gerencia usuários', () => {
-    expect(hasPermission({ role: 'voluntario' }, 'animal:changeStatus')).toBe(true);
-    expect(hasPermission({ role: 'voluntario' }, 'animal:delete')).toBe(false);
-    expect(hasPermission({ role: 'voluntario' }, 'user:manage')).toBe(false);
+  it('admin faz tudo, inclusive o que era do voluntário', () => {
+    expect(hasPermission(admin, 'animal:changeStatus')).toBe(true);
+    expect(hasPermission(admin, 'animal:update')).toBe(true);
+    expect(hasPermission(admin, 'animal:delete')).toBe(true);
+    expect(hasPermission(admin, 'user:manage')).toBe(true);
+    expect(hasPermission(admin, 'vaquinha:manage')).toBe(true);
+  });
+
+  it('convidado só registra denúncia, mesmo tendo perfil de morador', () => {
+    expect(hasPermission(convidado, 'animal:create')).toBe(true);
+    expect(hasPermission(convidado, 'animal:viewAll')).toBe(false);
+    expect(hasPermission(convidado, 'vaquinha:view')).toBe(false);
+    expect(hasPermission(convidado, 'user:list')).toBe(false);
   });
 
   it('usuário não logado não tem permissões', () => {

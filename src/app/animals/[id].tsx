@@ -2,8 +2,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -16,7 +16,6 @@ import {
   type AnimalStatus,
 } from '@/domain/entities/Animal';
 import { Icon, type IconName } from '@/presentation/components/Icon';
-import { PawPrint } from '@/presentation/components/Illustrations';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
 import { AppText, Button, Card, FormError, Pill, SectionHeader } from '@/presentation/components/ui';
 import { describeError, formatAge, formatDate, formatDateTime } from '@/presentation/format';
@@ -38,7 +37,8 @@ export default function AnimalDetailScreen() {
     async () => ({ animal: await animals.getById(id), history: await animals.statusHistory(id) }),
     [animals, id],
   );
-  const { data, error, loading } = useFocusedQuery(query);
+  const { data, error, loading, reload } = useFocusedQuery(query);
+  const [changing, setChanging] = useState(false);
 
   if (loading && !data) {
     return <ActivityIndicator style={{ marginTop: 120 }} color={colors.primary} />;
@@ -55,6 +55,31 @@ export default function AnimalDetailScreen() {
   const canEdit = animals.canEdit(user, animal);
   const canDelete = can('animal:delete') && animal.status !== 'adotado';
   const journeyIndex = JOURNEY.indexOf(animal.status === 'em_tratamento' ? 'resgatado' : animal.status);
+  const nextStatuses = animals.allowedNextStatuses(user, animal);
+
+  function confirmStatusChange(next: AnimalStatus) {
+    Alert.alert(
+      STATUS_LABELS[next],
+      `Marcar "${animal.name}" como ${STATUS_LABELS[next].toLowerCase()}? A mudança fica registrada no histórico.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            setChanging(true);
+            try {
+              await animals.changeStatus(user!, animal.id, next);
+              await reload();
+            } catch (err) {
+              Alert.alert('Não foi possível alterar', describeError(err).message);
+            } finally {
+              setChanging(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   function confirmDelete() {
     Alert.alert('Excluir animal', `Deseja excluir "${animal.name}"? Esta ação não pode ser desfeita.`, [
@@ -83,7 +108,7 @@ export default function AnimalDetailScreen() {
             <Image source={{ uri: animal.photoUri }} contentFit="cover" transition={300} style={StyleSheet.absoluteFill} />
           ) : (
             <View style={styles.heroPlaceholder}>
-              <PawPrint size={110} color={colors.primary} opacity={0.45} />
+              <Icon name={statusStyles[animal.status].icon} size={56} color={colors.textMuted} />
             </View>
           )}
           <LinearGradient colors={gradients.photoTop} style={styles.heroShade} />
@@ -172,6 +197,38 @@ export default function AnimalDetailScreen() {
               </View>
             </Card>
           </View>
+
+          {/* Avançar a jornada é a operação central do admin: é o que faz o
+              registro deixar de ser uma denúncia parada. */}
+          {nextStatuses.length > 0 && (
+            <View style={styles.section}>
+              <SectionHeader title="Avançar" icon="check" subtitle="Registra a mudança no histórico" />
+              <View style={styles.statusActions}>
+                {nextStatuses.map((next) => {
+                  const tone = statusStyles[next];
+                  return (
+                    <Pressable
+                      key={next}
+                      onPress={() => confirmStatusChange(next)}
+                      accessibilityRole="button"
+                      disabled={changing}
+                      style={({ pressed }) => [
+                        styles.statusAction,
+                        { borderColor: tone.text, backgroundColor: tone.background },
+                        pressed && { opacity: 0.8 },
+                        changing && { opacity: 0.5 },
+                      ]}
+                    >
+                      <Icon name={tone.icon} size={18} color={tone.text} />
+                      <AppText variant="bodyStrong" color={tone.text}>
+                        {STATUS_LABELS[next]}
+                      </AppText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           <View style={styles.section}>
             <SectionHeader title="Histórico" icon="clock" />
@@ -313,5 +370,15 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     ...shadows.floating,
+  },
+  statusActions: { gap: spacing.sm },
+  statusAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
   },
 });

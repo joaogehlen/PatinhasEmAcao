@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   ANIMAL_SEXES,
@@ -21,9 +21,11 @@ import {
 } from '@/domain/entities/Animal';
 
 import { describeError } from '../format';
-import { spacing } from '../theme';
+import { useCurrentLocation, type Coordinates } from '../hooks/useCurrentLocation';
+import { colors, radius, rules, spacing } from '../theme';
+import { Icon } from './Icon';
 import { PhotoPicker } from './PhotoPicker';
-import { Button, Card, ChipSelect, FormError, SectionHeader, TextField } from './ui';
+import { AppText, Button, Card, ChipSelect, FormError, SectionHeader, TextField } from './ui';
 
 export interface AnimalFormSubmit {
   input: Record<string, unknown>;
@@ -55,6 +57,25 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
   const [photoUri, setPhotoUri] = useState<string | null>(initial?.photoUri ?? null);
   const [initialStatus, setInitialStatus] = useState<AnimalStatus | null>('denunciado');
 
+  /**
+   * Coordenada da denúncia.
+   *
+   * Numa denúncia nova ela é capturada sozinha ao abrir a tela: quem está na
+   * rua com um animal ferido não deve precisar apertar nada para isso. Na
+   * edição a coordenada existente é preservada, e o botão só substitui se a
+   * pessoa quiser.
+   */
+  const [coords, setCoords] = useState<Coordinates | null>(
+    initial?.latitude !== null && initial?.latitude !== undefined && initial?.longitude !== null && initial?.longitude !== undefined
+      ? { latitude: initial.latitude, longitude: initial.longitude }
+      : null,
+  );
+  const { coords: deviceCoords, status: locationStatus, request: requestLocation } = useCurrentLocation();
+
+  useEffect(() => {
+    if (!initial && deviceCoords && coords === null) setCoords(deviceCoords);
+  }, [initial, deviceCoords, coords]);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -75,9 +96,8 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
           description,
           healthNotes,
           photoUri,
-          // GPS entra na Sprint 2; mantém coordenadas existentes na edição.
-          latitude: initial?.latitude ?? null,
-          longitude: initial?.longitude ?? null,
+          latitude: coords?.latitude ?? null,
+          longitude: coords?.longitude ?? null,
         },
         initialStatus: initialStatus ?? 'denunciado',
       });
@@ -94,6 +114,45 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <FormError message={error} />
         <PhotoPicker uri={photoUri} onChange={setPhotoUri} />
+
+        <Card>
+          <SectionHeader title="Onde o animal está" icon="location" />
+          <Pressable
+            onPress={async () => {
+              const next = await requestLocation();
+              if (next) setCoords(next);
+            }}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.locationRow, pressed && { opacity: 0.8 }]}
+          >
+            {locationStatus === 'loading' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Icon name="location" size={20} color={coords ? colors.primary : colors.textMuted} />
+            )}
+            <View style={{ flex: 1 }}>
+              <AppText variant="bodyStrong">
+                {coords ? 'Localização registrada' : 'Sem localização'}
+              </AppText>
+              <AppText variant="caption" color={colors.textMuted}>
+                {coords
+                  ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} · toque para atualizar`
+                  : locationStatus === 'denied'
+                    ? 'Acesso negado. Autorize nas configurações do aparelho e toque aqui.'
+                    : locationStatus === 'loading'
+                      ? 'Buscando sua posição…'
+                      : 'Toque para usar sua localização atual.'}
+              </AppText>
+            </View>
+          </Pressable>
+          {/* Denúncia sem coordenada é aceita: melhor um registro incompleto
+              que nenhum registro. Mas o voluntário precisa saber disso. */}
+          {!coords && locationStatus !== 'loading' && (
+            <AppText variant="caption" color={colors.textMuted}>
+              Sem o ponto, o animal não aparece no mapa — descreva bem o local na descrição.
+            </AppText>
+          )}
+        </Card>
 
         <Card>
           <SectionHeader title="Identificação" icon="paw" />
@@ -169,4 +228,16 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
 
 const styles = StyleSheet.create({
   container: { padding: spacing.xl, paddingBottom: 56, gap: spacing.lg },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 56,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: rules.hair,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
 });

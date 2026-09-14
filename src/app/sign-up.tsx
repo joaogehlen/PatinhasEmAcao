@@ -14,7 +14,8 @@ const BENEFITS: { icon: IconName; text: string }[] = [
 ];
 
 export default function SignUpScreen() {
-  const { register } = useAuth();
+  const { register, user } = useAuth();
+  const fromGuest = user?.isGuest ?? false;
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,9 @@ export default function SignUpScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <AppText variant="title">Crie sua conta</AppText>
         <AppText variant="body" color={colors.textMuted} style={styles.subtitle}>
-          Faça parte da rede que protege os animais da nossa cidade.
+          {fromGuest
+            ? 'As denúncias que você já registrou vêm junto — a conta é criada sobre a mesma sessão.'
+            : 'Faça parte da rede que protege os animais da nossa cidade.'}
         </AppText>
 
         <View style={styles.benefits}>

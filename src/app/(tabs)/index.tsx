@@ -1,294 +1,284 @@
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
+import MapView, { Callout, Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  ANIMAL_SIZES,
-  ANIMAL_SPECIES,
-  ANIMAL_STATUSES,
-  SIZE_LABELS,
-  STATUS_LABELS,
-  type Animal,
-  type AnimalSize,
-  type AnimalSpecies,
-  type AnimalStatus,
-} from '@/domain/entities/Animal';
+import { SIZE_LABELS, STATUS_LABELS, type Animal } from '@/domain/entities/Animal';
 import { Icon } from '@/presentation/components/Icon';
-import { PawPattern, PawPrint } from '@/presentation/components/Illustrations';
-import { StatusBadge } from '@/presentation/components/StatusBadge';
-import { AppText, Avatar, ChipSelect, EmptyState, FormError, TextField } from '@/presentation/components/ui';
-import { firstName, formatAge, greeting } from '@/presentation/format';
+import { AppText } from '@/presentation/components/ui';
+import { formatAge } from '@/presentation/format';
+import { useCurrentLocation } from '@/presentation/hooks/useCurrentLocation';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
+import { ARVOREZINHA_REGION, MAP_STYLE_DARK } from '@/presentation/mapStyle';
 import { useAuth, useServices } from '@/presentation/providers/AppProviders';
-import { colors, gradients, radius, shadows, spacing } from '@/presentation/theme';
+import { colors, radius, rules, shadows, spacing, statusStyles } from '@/presentation/theme';
 
-const SPECIES_FILTER_LABELS: Record<AnimalSpecies, string> = { cachorro: 'Cachorros', gato: 'Gatos', outro: 'Outros' };
-const GRID_GAP = spacing.md;
-const SCREEN_PADDING = spacing.xl;
-
-export default function HomeScreen() {
+/**
+ * Tela inicial: o mapa.
+ *
+ * É a primeira coisa que qualquer pessoa vê, com ou sem conta, porque o
+ * momento crítico do produto é alguém na rua vendo um animal em risco.
+ *
+ * O que muda por perfil:
+ *   convidado — vê a própria localização e as denúncias que ele mesmo abriu
+ *   morador   — vê todas as denúncias já registradas
+ *   admin     — o mesmo, e toca num ponto para acompanhar e mudar o status
+ */
+export default function MapScreen() {
   const { animals } = useServices();
-  const { user, can } = useAuth();
+  const { can } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const cardWidth = (width - SCREEN_PADDING * 2 - GRID_GAP) / 2;
+  const mapRef = useRef<MapView>(null);
+  const { coords, status: locationStatus, request } = useCurrentLocation();
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [species, setSpecies] = useState<AnimalSpecies | null>(null);
-  const [size, setSize] = useState<AnimalSize | null>(null);
-  const [status, setStatus] = useState<AnimalStatus | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const query = useCallback(async () => animals.list(), [animals]);
+  const { data } = useFocusedQuery(query);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const query = useCallback(async () => {
-    const [filtered, all] = await Promise.all([
-      animals.list({
-        search: debouncedSearch,
-        species: species ?? undefined,
-        size: size ?? undefined,
-        status: status ?? undefined,
-      }),
-      animals.list(),
-    ]);
-    const count = (...statuses: AnimalStatus[]) => all.filter((animal) => statuses.includes(animal.status)).length;
-    return {
-      filtered,
-      stats: {
-        available: count('disponivel'),
-        inCare: count('resgatado', 'em_tratamento'),
-        adopted: count('adotado'),
-      },
-    };
-  }, [animals, debouncedSearch, species, size, status]);
-  const { data, error, loading, reload } = useFocusedQuery(query);
-
-  const activeFilters = (size ? 1 : 0) + (status ? 1 : 0);
-
-  const header = (
-    <View>
-      <View style={[styles.topBar, { paddingTop: insets.top + spacing.md }]}>
-        <View style={{ flex: 1 }}>
-          <AppText variant="bodyStrong" color={colors.textMuted}>
-            {greeting()}, {user ? firstName(user.name) : ''} 👋
-          </AppText>
-          <AppText variant="title">Quem precisa de você hoje?</AppText>
-        </View>
-        {user && (
-          <Pressable onPress={() => router.push('/profile')} accessibilityLabel="Abrir perfil">
-            <Avatar name={user.name} size={48} />
-          </Pressable>
-        )}
-      </View>
-
-      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.impactCard}>
-        <PawPattern opacity={0.12} />
-        <AppText variant="overline" color="rgba(255,255,255,0.85)">
-          Impacto da ONG
-        </AppText>
-        <View style={styles.statsRow}>
-          <Stat value={data?.stats.available} label="para adoção" />
-          <View style={styles.statDivider} />
-          <Stat value={data?.stats.inCare} label="em cuidado" />
-          <View style={styles.statDivider} />
-          <Stat value={data?.stats.adopted} label="adotados" />
-        </View>
-      </LinearGradient>
-
-      <View style={styles.searchRow}>
-        <View style={{ flex: 1 }}>
-          <TextField icon="search" placeholder="Buscar por nome ou descrição" value={search} onChangeText={setSearch} returnKeyType="search" />
-        </View>
-        <Pressable
-          onPress={() => setShowFilters((value) => !value)}
-          accessibilityLabel="Filtros"
-          style={[styles.filterButton, (showFilters || activeFilters > 0) && styles.filterButtonActive]}
-        >
-          <Icon name="filter" size={20} color={showFilters || activeFilters > 0 ? colors.white : colors.text} />
-          {activeFilters > 0 && (
-            <View style={styles.filterBadge}>
-              <AppText variant="label" color={colors.white} style={{ fontSize: 10, lineHeight: 12 }}>
-                {activeFilters}
-              </AppText>
-            </View>
-          )}
-        </Pressable>
-      </View>
-
-      <ChipSelect
-        options={ANIMAL_SPECIES}
-        labels={SPECIES_FILTER_LABELS}
-        value={species}
-        onChange={setSpecies}
-        allLabel="Todos"
-        icons={{ cachorro: 'paw', gato: 'paw' }}
-        scroll
-      />
-
-      {showFilters && (
-        <View style={styles.filtersPanel}>
-          <ChipSelect label="Porte" options={ANIMAL_SIZES} labels={SIZE_LABELS} value={size} onChange={setSize} allowClear />
-          <ChipSelect label="Situação" options={ANIMAL_STATUSES} labels={STATUS_LABELS} value={status} onChange={setStatus} allowClear />
-        </View>
-      )}
-
-      {can('animal:create') && (
-        <Pressable onPress={() => router.push('/animals/new')} style={({ pressed }) => [styles.reportBanner, pressed && { opacity: 0.9 }]}>
-          <View style={styles.reportIcon}>
-            <Icon name="megaphone" size={22} color={colors.white} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <AppText variant="subheading" color={colors.white}>
-              Viu um animal em risco?
-            </AppText>
-            <AppText variant="caption" color="rgba(255,255,255,0.8)">
-              Registre uma denúncia com foto em menos de 1 minuto.
-            </AppText>
-          </View>
-          <Icon name="chevronRight" size={18} color={colors.white} />
-        </Pressable>
-      )}
-
-      <View style={styles.listTitle}>
-        <AppText variant="heading">Animais</AppText>
-        <AppText variant="label" color={colors.textMuted}>
-          {data ? `${data.filtered.length} encontrados` : ''}
-        </AppText>
-      </View>
-      <FormError message={error} />
-    </View>
+  /** Só entra no mapa quem tem coordenada; denúncia antiga pode não ter. */
+  const located = useMemo(
+    () => (data ?? []).filter((animal) => animal.latitude !== null && animal.longitude !== null),
+    [data],
   );
+
+  const initialRegion: Region = coords
+    ? { ...coords, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+    : ARVOREZINHA_REGION;
+
+  async function centerOnMe() {
+    const next = coords ?? (await request());
+    if (next) {
+      mapRef.current?.animateToRegion({ ...next, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 600);
+    }
+  }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={data?.filtered ?? []}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: GRID_GAP }}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={header}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading && data !== null} onRefresh={reload} tintColor={colors.primary} />}
-        renderItem={({ item }) => (
-          <AnimalCard animal={item} width={cardWidth} onPress={() => router.push(`/animals/${item.id}`)} />
-        )}
-        ListEmptyComponent={
-          loading ? null : (
-            <EmptyState
-              title="Nenhum animal por aqui"
-              message="Tente outros filtros ou registre um animal que precisa de ajuda."
-            />
-          )
-        }
-      />
-    </View>
-  );
-}
+      <StatusBar style="light" />
 
-function Stat({ value, label }: { value: number | undefined; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <AppText variant="display" color={colors.white}>
-        {value ?? '–'}
-      </AppText>
-      <AppText variant="caption" color="rgba(255,255,255,0.9)">
-        {label}
-      </AppText>
-    </View>
-  );
-}
+      {/*
+        O provider NÃO é forçado.
 
-function AnimalCard({ animal, width, onPress }: { animal: Animal; width: number; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { width }, pressed && styles.cardPressed]}>
-      <View style={[styles.cardImage, { height: width * 1.1 }]}>
-        {animal.photoUri ? (
-          <Image source={{ uri: animal.photoUri }} contentFit="cover" transition={250} style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={styles.cardPlaceholder}>
-            <PawPrint size={48} color={colors.primary} opacity={0.5} />
-          </View>
-        )}
-        <View style={styles.cardBadge}>
-          <StatusBadge status={animal.status} />
+        No iOS dentro do Expo Go, passar PROVIDER_GOOGLE devolve tela em branco
+        sem erro nenhum: o SDK do Google Maps não vem no Expo Go do iPhone.
+        Deixando o padrão, o Android usa Google Maps e o iOS usa Apple Maps,
+        e nenhum dos dois precisa de chave em desenvolvimento.
+
+        Como consequência, customMapStyle só vale no Android — Apple Maps não
+        aceita JSON de estilo. No iOS o escuro vem de userInterfaceStyle.
+      */}
+      <MapView
+        ref={mapRef}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        style={StyleSheet.absoluteFill}
+        initialRegion={initialRegion}
+        customMapStyle={Platform.OS === 'android' ? MAP_STYLE_DARK : undefined}
+        userInterfaceStyle="dark"
+        showsUserLocation={locationStatus === 'granted'}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+      >
+        {located.map((animal) => (
+          <AnimalMarker
+            key={animal.id}
+            animal={animal}
+            onPress={() => router.push(`/animals/${animal.id}`)}
+          />
+        ))}
+      </MapView>
+
+      {locationStatus === 'denied' && (
+        <View style={[styles.notice, { bottom: insets.bottom + 150 }]}>
+          <Icon name="location" size={18} color={colors.primary} />
+          <AppText variant="caption" color={colors.textSoft} style={{ flex: 1 }}>
+            Sem acesso à localização, a denúncia vai sem o ponto no mapa. Autorize nas configurações do aparelho.
+          </AppText>
         </View>
+      )}
+
+      {/* Empilhadas no canto inferior direito: é onde o polegar alcança com
+          uma mão só, que é como o app é usado na rua. */}
+      <View style={[styles.actions, { bottom: insets.bottom + spacing.sm }]} pointerEvents="box-none">
+        <Pressable
+          onPress={centerOnMe}
+          accessibilityRole="button"
+          accessibilityLabel="Centralizar na minha localização"
+          style={({ pressed }) => [styles.locateButton, pressed && { opacity: 0.8 }]}
+        >
+          {locationStatus === 'loading' ? (
+            <ActivityIndicator size="small" color={colors.text} />
+          ) : (
+            <Icon name="location" size={22} color={colors.text} />
+          )}
+        </Pressable>
+
+        {can('animal:create') && (
+          <Pressable
+            onPress={() => router.push('/animals/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Registrar denúncia de animal"
+            style={({ pressed }) => [styles.reportButton, pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] }]}
+          >
+            <Icon name="megaphone" size={20} color={colors.onPrimary} />
+            <AppText variant="button" color={colors.onPrimary}>
+              Denunciar
+            </AppText>
+          </Pressable>
+        )}
       </View>
-      <View style={styles.cardBody}>
-        <AppText variant="subheading" numberOfLines={1}>
-          {animal.name}
-        </AppText>
-        <AppText variant="caption" color={colors.textMuted} numberOfLines={1}>
-          {SIZE_LABELS[animal.size]} · {formatAge(animal.ageMonths)}
-        </AppText>
+    </View>
+  );
+}
+
+/**
+ * Marcador na cor do status, com cartão ao tocar.
+ *
+ * O pino é desenhado à mão porque o do Google é vermelho fixo e não sabe
+ * dizer se o animal foi resgatado. O cartão mostra foto e nome: quem está no
+ * mapa precisa reconhecer o bicho antes de decidir abrir a ficha inteira.
+ */
+function AnimalMarker({ animal, onPress }: { animal: Animal; onPress: () => void }) {
+  const tone = statusStyles[animal.status];
+  // No Android o balão é desenhado como bitmap no momento em que abre; se a
+  // foto ainda não chegou, sai vazia. Redesenhar quando ela carrega resolve.
+  const [photoReady, setPhotoReady] = useState(false);
+
+  return (
+    <Marker
+      coordinate={{ latitude: animal.latitude!, longitude: animal.longitude! }}
+      onCalloutPress={onPress}
+      tracksViewChanges={false}
+    >
+      <View style={[styles.marker, { borderColor: tone.text, backgroundColor: tone.background }]}>
+        <Icon name={tone.icon} size={16} color={tone.text} />
       </View>
-    </Pressable>
+
+      <Callout tooltip key={photoReady ? 'ready' : 'loading'}>
+        <View style={styles.callout}>
+          <View style={styles.calloutPhoto}>
+            {animal.photoUri ? (
+              <Image
+                source={{ uri: animal.photoUri }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                onLoadEnd={() => setPhotoReady(true)}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <Icon name={tone.icon} size={28} color={colors.textMuted} />
+            )}
+          </View>
+
+          <View style={styles.calloutBody}>
+            <AppText variant="subheading" numberOfLines={1}>
+              {animal.name}
+            </AppText>
+            <AppText variant="caption" color={colors.textMuted} numberOfLines={1}>
+              {SIZE_LABELS[animal.size]} · {formatAge(animal.ageMonths)}
+            </AppText>
+            <View style={styles.calloutFooter}>
+              <View style={[styles.calloutStatus, { backgroundColor: tone.background }]}>
+                <AppText variant="label" color={tone.text}>
+                  {STATUS_LABELS[animal.status]}
+                </AppText>
+              </View>
+              <Icon name="chevronRight" size={16} color={colors.textMuted} />
+            </View>
+          </View>
+        </View>
+        {/* Bico do balão, desenhado à mão porque `tooltip` remove o padrão. */}
+        <View style={styles.calloutTip} />
+      </Callout>
+    </Marker>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: SCREEN_PADDING, paddingBottom: spacing.xxl, gap: GRID_GAP },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
-  impactCard: { borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', marginBottom: spacing.xl, ...shadows.primary },
-  statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
-  stat: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.3)' },
-  searchRow: { flexDirection: 'row', gap: spacing.sm },
-  filterButton: {
-    width: 54,
-    height: 54,
-    borderRadius: radius.md,
+
+  notice: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderRadius: radius.md,
+    borderWidth: rules.hair,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+
+  actions: {
+    position: 'absolute',
+    right: spacing.lg,
+    alignItems: 'flex-end',
+    gap: spacing.md,
+  },
+  locateButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: rules.hair,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.floating,
   },
-  filterButtonActive: { backgroundColor: colors.text, borderColor: colors.text },
-  filterBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filtersPanel: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, paddingBottom: 0, marginBottom: spacing.lg, ...shadows.card },
-  reportBanner: {
+  reportButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.text,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  reportIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    gap: spacing.sm,
+    minHeight: 56,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
+    ...shadows.floating,
+  },
+
+  marker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: rules.strong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listTitle: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: spacing.xs },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', ...shadows.card },
-  cardPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  cardImage: { backgroundColor: colors.primarySoft },
-  cardPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cardBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm, right: spacing.sm },
-  cardBody: { padding: spacing.md, gap: 2 },
+
+  // Largura fixa: o balão do mapa não herda medida do container.
+  callout: {
+    width: 232,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: rules.hair,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  calloutPhoto: {
+    height: 116,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calloutBody: { padding: spacing.md, gap: 3 },
+  calloutFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  calloutStatus: { borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  calloutTip: {
+    alignSelf: 'center',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 9,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: colors.surface,
+  },
 });

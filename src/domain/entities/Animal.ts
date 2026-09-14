@@ -7,7 +7,14 @@ export type AnimalSize = (typeof ANIMAL_SIZES)[number];
 export const ANIMAL_SEXES = ['macho', 'femea', 'desconhecido'] as const;
 export type AnimalSex = (typeof ANIMAL_SEXES)[number];
 
-export const ANIMAL_TEMPERAMENTS = ['docil', 'brincalhao', 'timido', 'agitado', 'protetor'] as const;
+/**
+ * "bravo" substituiu "protetor" em 14/09/2026.
+ *
+ * É informação de segurança para quem vai atender a denúncia, não traço de
+ * personalidade. Evitamos "raivoso" de propósito: raiva também é o nome da
+ * doença, e o app não tem como sustentar esse diagnóstico.
+ */
+export const ANIMAL_TEMPERAMENTS = ['docil', 'brincalhao', 'timido', 'agitado', 'bravo'] as const;
 export type AnimalTemperament = (typeof ANIMAL_TEMPERAMENTS)[number];
 
 /** Fluxo da timeline descrito na proposta: Denunciado → Resgate → Tratamento → Adoção. */
@@ -37,7 +44,7 @@ export const TEMPERAMENT_LABELS: Record<AnimalTemperament, string> = {
   brincalhao: 'Brincalhão',
   timido: 'Tímido',
   agitado: 'Agitado',
-  protetor: 'Protetor',
+  bravo: 'Bravo — cuidado ao aproximar',
 };
 
 export const STATUS_LABELS: Record<AnimalStatus, string> = {
@@ -61,12 +68,13 @@ export interface Animal {
   /** Observações de saúde (vacinas, castração, medicação). */
   healthNotes: string | null;
   status: AnimalStatus;
-  /** URI local da foto (Sprint 1); passa a ser URL do Storage quando houver backend. */
+  /** URL pública da foto no Supabase Storage (bucket animal-photos). */
   photoUri: string | null;
   /** Coordenadas ficam no modelo desde já; captura via GPS entra na Sprint 2. */
   latitude: number | null;
   longitude: number | null;
-  createdBy: string;
+  /** Autor da denúncia; null se a conta foi excluída — o registro do animal sobrevive a ela. */
+  createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -78,6 +86,7 @@ export interface AnimalStatusChange {
   fromStatus: AnimalStatus | null;
   toStatus: AnimalStatus;
   note: string | null;
-  changedBy: string;
+  /** Autor da mudança; null se a conta foi excluída. */
+  changedBy: string | null;
   changedAt: string;
 }

@@ -41,6 +41,9 @@ const ICONS = {
   cake: { ios: 'birthday.cake.fill', android: 'cake' },
   mood: { ios: 'face.smiling', android: 'mood' },
   megaphone: { ios: 'megaphone.fill', android: 'campaign' },
+  map: { ios: 'map.fill', android: 'map' },
+  donate: { ios: 'heart.circle.fill', android: 'volunteer_activism' },
+  copy: { ios: 'doc.on.doc.fill', android: 'content_copy' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

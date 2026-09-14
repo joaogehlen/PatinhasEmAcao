@@ -1,7 +1,8 @@
-import type { Animal, AnimalStatus, AnimalStatusChange } from '@/domain/entities/Animal';
+import { STATUS_LABELS, type Animal, type AnimalStatus, type AnimalStatusChange } from '@/domain/entities/Animal';
 import type { User } from '@/domain/entities/User';
 import { DomainError, ForbiddenError, NotFoundError } from '@/domain/errors';
 import type { AnimalFilters, AnimalRepository } from '@/domain/repositories/AnimalRepository';
+import { allowedNextStatuses, canTransition } from '@/domain/rules/animalStatus';
 import { hasPermission } from '@/domain/rules/permissions';
 
 import type { Clock, IdGenerator } from '../ports';
@@ -74,6 +75,35 @@ export class AnimalService {
     return updated;
   }
 
+  /**
+   * Avança a jornada do animal.
+   *
+   * A transição é validada aqui e de novo pelo trigger no banco, que também
+   * grava a linha da timeline. Duplicidade proposital: a checagem daqui dá
+   * mensagem boa e evita a ida à rede; a do banco é a que não dá para burlar.
+   */
+  async changeStatus(actor: User, id: string, toStatus: AnimalStatus): Promise<Animal> {
+    if (!hasPermission(actor, 'animal:changeStatus')) throw new ForbiddenError();
+
+    const current = await this.getById(id);
+    if (current.status === toStatus) return current;
+    if (!canTransition(current.status, toStatus)) {
+      throw new DomainError(
+        `Não dá para ir de "${STATUS_LABELS[current.status]}" para "${STATUS_LABELS[toStatus]}".`,
+      );
+    }
+
+    const updated: Animal = { ...current, status: toStatus, updatedAt: this.clock.nowIso() };
+    await this.animals.update(updated);
+    return updated;
+  }
+
+  /** Estados para os quais este animal pode ir agora. Vazio para quem não pode mudar. */
+  allowedNextStatuses(actor: User | null, animal: Animal): readonly AnimalStatus[] {
+    if (!hasPermission(actor, 'animal:changeStatus')) return [];
+    return allowedNextStatuses(animal.status);
+  }
+
   async delete(actor: User, id: string): Promise<void> {
     if (!hasPermission(actor, 'animal:delete')) throw new ForbiddenError();
     const current = await this.getById(id);
@@ -83,10 +113,14 @@ export class AnimalService {
     await this.animals.delete(id);
   }
 
-  /** Voluntários/admins editam qualquer animal; o denunciante edita a própria denúncia enquanto não houver resgate. */
-  canEdit(actor: User | null, animal: Animal): boolean {
-    if (!actor) return false;
-    if (hasPermission(actor, 'animal:update')) return true;
-    return animal.createdBy === actor.id && animal.status === 'denunciado';
+  /**
+   * Editar animal é do administrador.
+   *
+   * Até 14/09/2026 o denunciante podia corrigir a própria denúncia enquanto
+   * não houvesse resgate. A decisão de concentrar o trabalho de campo no admin
+   * tirou isso: o morador registra e acompanha, não edita.
+   */
+  canEdit(actor: User | null, _animal: Animal): boolean {
+    return hasPermission(actor, 'animal:update');
   }
 }

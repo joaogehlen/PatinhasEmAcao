@@ -1,72 +1,50 @@
 import type { User } from '@/domain/entities/User';
-import { AuthenticationError, ConflictError } from '@/domain/errors';
-import type { UserRepository } from '@/domain/repositories/UserRepository';
 
-import type { Clock, IdGenerator, PasswordHasher, SessionStore } from '../ports';
+import type { AuthProvider } from '../ports';
 import { loginSchema, registerSchema } from '../validation/schemas';
 import { validate } from '../validation/validate';
 
+/**
+ * Casos de uso de autenticação.
+ *
+ * Antes este serviço fazia hash de senha e guardava a sessão. Com o Supabase
+ * isso é trabalho do servidor; aqui sobra o que sempre foi de fato regra de
+ * aplicação: validar a entrada e traduzir a resposta em User de domínio.
+ */
 export class AuthService {
-  constructor(
-    private readonly users: UserRepository,
-    private readonly hasher: PasswordHasher,
-    private readonly session: SessionStore,
-    private readonly ids: IdGenerator,
-    private readonly clock: Clock,
-  ) {}
+  constructor(private readonly provider: AuthProvider) {}
 
-  /** Restaura o usuário da sessão persistida, se ainda existir. */
-  async restoreSession(): Promise<User | null> {
-    const userId = await this.session.getUserId();
-    if (!userId) return null;
-
-    const user = await this.users.findById(userId);
-    if (!user) await this.session.clear();
-    return user;
+  /** Restaura o usuário da sessão persistida, se ainda for válida. */
+  restoreSession(): Promise<User | null> {
+    return this.provider.currentUser();
   }
 
   async login(input: unknown): Promise<User> {
     const { email, password } = validate(loginSchema, input);
-    const stored = await this.users.findByEmailWithCredentials(email);
-    if (!stored) throw new AuthenticationError();
-
-    const hash = await this.hasher.hash(password, stored.passwordSalt);
-    if (hash !== stored.passwordHash) throw new AuthenticationError();
-
-    await this.session.setUserId(stored.id);
-    const { passwordHash: _hash, passwordSalt: _salt, ...user } = stored;
-    return user;
+    return this.provider.signIn(email, password);
   }
 
   /** Autocadastro público: sempre cria perfil de morador. */
   async register(input: unknown): Promise<User> {
     const data = validate(registerSchema, input);
-    if (await this.users.findByEmailWithCredentials(data.email)) {
-      throw new ConflictError('Já existe uma conta com este e-mail.');
-    }
-
-    const salt = await this.hasher.generateSalt();
-    const now = this.clock.nowIso();
-    const user: User = {
-      id: this.ids.next(),
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      role: 'morador',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await this.users.create({
-      ...user,
-      passwordHash: await this.hasher.hash(data.password, salt),
-      passwordSalt: salt,
-    });
-    await this.session.setUserId(user.id);
-    return user;
+    return this.provider.signUp(data);
   }
 
-  async logout(): Promise<void> {
-    await this.session.clear();
+  /** Entra sem conta, para registrar uma denúncia e acompanhá-la. */
+  continueAsGuest(): Promise<User> {
+    return this.provider.signInAsGuest();
+  }
+
+  logout(): Promise<void> {
+    return this.provider.signOut();
+  }
+
+  /**
+   * Sessão expirada ou revogada chega por aqui. Sem isso o app ficaria com um
+   * usuário em memória que o servidor já não reconhece — cenário que não
+   * existia quando o banco era local.
+   */
+  onAuthStateChange(listener: (user: User | null) => void): () => void {
+    return this.provider.onAuthStateChange(listener);
   }
 }

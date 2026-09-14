@@ -10,7 +10,7 @@ import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
 import { colors, radius, roleStyles, shadows, spacing } from '@/presentation/theme';
 
-const ROLE_FILTER_LABELS: Record<UserRole, string> = { morador: 'Moradores', voluntario: 'Voluntários', admin: 'Admins' };
+const ROLE_FILTER_LABELS: Record<UserRole, string> = { morador: 'Moradores', admin: 'Admins' };
 
 export default function UserListScreen() {
   const { users } = useServices();
