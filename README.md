@@ -1,4 +1,4 @@
-# Patinhas em Ação 🐾
+# Patinhas em Ação
 
 Aplicativo mobile para a ONG Patinhas em Ação (Arvorezinha/RS): denúncias de animais em risco, acompanhamento do resgate, adoção e doações.
 
