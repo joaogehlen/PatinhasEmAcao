@@ -23,13 +23,14 @@ Sem isso o cadastro pelo app não abre sessão: o Supabase espera o clique no li
 
 ## 4. Criar as contas de demonstração
 
-**Authentication → Users → Add user → Create new user**, três vezes, com **Auto Confirm User** marcado:
+Também é necessário habilitar **Authentication → Sign In / Providers → Anonymous** — é o que sustenta o modo convidado (denunciar sem cadastro).
 
-| E-mail                    | Senha           |
-| ------------------------- | --------------- |
-| `admin@patinhas.org`      | `admin123`      |
-| `voluntario@patinhas.org` | `voluntario123` |
-| `morador@patinhas.org`    | `morador123`    |
+**Authentication → Users → Add user → Create new user**, duas vezes, com **Auto Confirm User** marcado:
+
+| E-mail                 | Senha        |
+| ---------------------- | ------------ |
+| `admin@patinhas.org`   | `admin123`   |
+| `morador@patinhas.org` | `morador123` |
 
 Criar usuário de autenticação por SQL não é suportado, e a Admin API exigiria a `service_role key` — que não pode sair do servidor. Por isso este passo é manual.
 
@@ -37,7 +38,7 @@ O trigger `on_auth_user_created` cria os perfis automaticamente, todos como `mor
 
 ## 5. Popular com os dados de exemplo
 
-**SQL Editor**, cole [`seed.sql`](seed.sql) e rode. Ele ajusta os nomes, promove admin e voluntária, e cria os 7 animais de demonstração.
+**SQL Editor**, cole [`seed.sql`](seed.sql) e rode. Ele ajusta o nome do admin e cria os 7 animais de demonstração.
 
 ## 6. Publicar a Edge Function
 
