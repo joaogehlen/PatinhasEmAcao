@@ -193,7 +193,6 @@ export default function HomeScreen() {
           loading ? null : (
             <EmptyState
               title="Nenhum animal por aqui"
-              message="Tente outros filtros, ou registre um animal que precisa de ajuda."
             />
           )
         }

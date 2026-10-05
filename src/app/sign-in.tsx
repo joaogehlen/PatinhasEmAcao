@@ -30,8 +30,9 @@ export default function SignInScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   async function handleGuest() {
-    // Veio do perfil do convidado: a sessão anônima continua de pé, é só voltar.
-    if (user?.isGuest) return router.back();
+    // Já é convidado: a sessão anônima continua de pé, é só ir para o app.
+    // Sem histórico (recarregou nesta tela, por exemplo) não há para onde voltar.
+    if (user?.isGuest) return router.canGoBack() ? router.back() : router.replace('/');
     setEntering(true);
     setError(null);
     try {
@@ -71,9 +72,6 @@ export default function SignInScreen() {
         <View style={styles.center}>
           <View style={styles.brand}>
             <AppText variant="display">Patinhas em Ação</AppText>
-            <AppText variant="body" color={colors.textMuted}>
-              Arvorezinha · Rio Grande do Sul
-            </AppText>
           </View>
 
           <View style={styles.form}>

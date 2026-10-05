@@ -137,22 +137,15 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
               </AppText>
               <AppText variant="caption" color={colors.textMuted}>
                 {coords
-                  ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} · toque para atualizar`
+                  ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
                   : locationStatus === 'denied'
-                    ? 'Acesso negado. Autorize nas configurações do aparelho e toque aqui.'
+                    ? 'Acesso negado'
                     : locationStatus === 'loading'
                       ? 'Buscando sua posição…'
-                      : 'Toque para usar sua localização atual.'}
+                      : 'Usar localização atual'}
               </AppText>
             </View>
           </Pressable>
-          {/* Denúncia sem coordenada é aceita: melhor um registro incompleto
-              que nenhum registro. Mas o voluntário precisa saber disso. */}
-          {!coords && locationStatus !== 'loading' && (
-            <AppText variant="caption" color={colors.textMuted}>
-              Sem o ponto, o animal não aparece no mapa — descreva bem o local na descrição.
-            </AppText>
-          )}
         </Card>
 
         <Card>

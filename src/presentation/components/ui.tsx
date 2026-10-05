@@ -377,14 +377,15 @@ export function Pill({ label, icon, background, color }: { label: string; icon?:
 /** Tons de iniciais para avatar, todos legíveis sobre a superfície quente. */
 const AVATAR_INKS = ['#FF7A45', '#E8D5BE', '#F2C94C', '#62BFEA', '#C3A2F0'] as const;
 
-export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
-  const initials = name
+/** Sem nome (convidado), mostra a silhueta genérica de perfil sem foto. */
+export function Avatar({ name, size = 44 }: { name?: string; size?: number }) {
+  const initials = (name ?? '')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]!.toUpperCase())
     .join('');
-  const ink = AVATAR_INKS[name.length % AVATAR_INKS.length]!;
+  const ink = AVATAR_INKS[(name ?? '').length % AVATAR_INKS.length]!;
   return (
     <View
       style={{
@@ -398,7 +399,11 @@ export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
         justifyContent: 'center',
       }}
     >
-      <Text style={{ fontFamily: fonts.semibold, fontSize: size * 0.36, color: ink }}>{initials}</Text>
+      {name ? (
+        <Text style={{ fontFamily: fonts.semibold, fontSize: size * 0.36, color: ink }}>{initials}</Text>
+      ) : (
+        <Icon name="person" size={size * 0.5} color={colors.textMuted} />
+      )}
     </View>
   );
 }

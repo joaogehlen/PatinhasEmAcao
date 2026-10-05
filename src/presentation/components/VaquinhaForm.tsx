@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Swit
 
 import { MAX_VAQUINHA_PHOTOS, type Vaquinha } from '@/domain/entities/Vaquinha';
 
-import { describeError, formatMoney, parseMoney } from '../format';
+import { describeError, parseMoney } from '../format';
 import { useFocusedQuery } from '../hooks/useFocusedQuery';
 import { useServices } from '../providers/AppProviders';
 import { colors, radius, rules, spacing, statusStyles } from '../theme';
@@ -85,7 +85,6 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
           aspect={[16, 9]}
           folder={PHOTO_FOLDER}
           title="Capa da campanha"
-          hint="É a primeira imagem que as pessoas veem na lista de vaquinhas."
         />
 
         <Card>
@@ -102,7 +101,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
             label="Resumo"
             value={description}
             onChangeText={setDescription}
-            placeholder="Uma ou duas frases: aparece no card da lista"
+            placeholder="Uma ou duas frases"
             multiline
             maxLength={1000}
             error={fieldErrors.description}
@@ -111,7 +110,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
             label="Detalhes (opcional)"
             value={details}
             onChangeText={setDetails}
-            placeholder="O que aconteceu, para que serve o dinheiro, como está o caso, como as pessoas podem ajudar…"
+            placeholder="O que aconteceu e para que serve o dinheiro"
             multiline
             maxLength={5000}
             style={{ minHeight: 140 }}
@@ -120,7 +119,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
         </Card>
 
         <Card>
-          <SectionHeader title="Fotos" icon="gallery" subtitle="Dos animais, do tratamento, do que foi feito" />
+          <SectionHeader title="Fotos" icon="gallery" />
           <PhotoGalleryPicker
             uris={photoUris}
             onChange={setPhotoUris}
@@ -131,7 +130,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
         </Card>
 
         <Card>
-          <SectionHeader title="Animal" icon="paw" subtitle="Opcional: a campanha é de um animal específico?" />
+          <SectionHeader title="Animal (opcional)" icon="paw" />
           <AnimalSelect value={animalId} onChange={setAnimalId} />
         </Card>
 
@@ -145,11 +144,6 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
             placeholder="1.500,00"
             error={fieldErrors.goalCents}
           />
-          <AppText variant="caption" color={colors.textMuted}>
-            {initial
-              ? `Arrecadado até agora: ${formatMoney(initial.raisedCents)}. Para somar valores, use "Lançar valor" na página da vaquinha.`
-              : 'Depois de criar, lance os valores recebidos na página da vaquinha. O app não recebe nem confirma doações.'}
-          </AppText>
         </Card>
 
         <Card>
@@ -169,12 +163,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
             accessibilityState={{ checked: active }}
             style={styles.switchRow}
           >
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodyStrong">Campanha aberta</AppText>
-              <AppText variant="caption" color={colors.textMuted}>
-                Encerradas somem para os moradores e ficam visíveis só para vocês.
-              </AppText>
-            </View>
+            <AppText variant="bodyStrong" style={{ flex: 1 }}>Campanha aberta</AppText>
             <Switch
               value={active}
               onValueChange={setActive}

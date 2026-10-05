@@ -1,21 +1,13 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Icon, type IconName } from '@/presentation/components/Icon';
 import { AppText, Button, FormError, PasswordField, TextField } from '@/presentation/components/ui';
 import { describeError } from '@/presentation/format';
 import { useAuth } from '@/presentation/providers/AppProviders';
 import { colors, spacing } from '@/presentation/theme';
 
-const BENEFITS: { icon: IconName; text: string }[] = [
-  { icon: 'megaphone', text: 'Denuncie animais em risco com foto' },
-  { icon: 'clock', text: 'Acompanhe cada etapa do resgate' },
-  { icon: 'heart', text: 'Encontre um amigo para adotar' },
-];
-
 export default function SignUpScreen() {
-  const { register, user } = useAuth();
-  const fromGuest = user?.isGuest ?? false;
+  const { register } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,25 +32,7 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <AppText variant="title">Crie sua conta</AppText>
-        <AppText variant="body" color={colors.textMuted} style={styles.subtitle}>
-          {fromGuest
-            ? 'As denúncias que você já registrou vêm junto — a conta é criada sobre a mesma sessão.'
-            : 'Faça parte da rede que protege os animais da nossa cidade.'}
-        </AppText>
-
-        <View style={styles.benefits}>
-          {BENEFITS.map((benefit) => (
-            <View key={benefit.text} style={styles.benefit}>
-              <View style={styles.benefitIcon}>
-                <Icon name={benefit.icon} size={16} color={colors.secondaryDark} />
-              </View>
-              <AppText variant="bodyStrong" color={colors.textSoft}>
-                {benefit.text}
-              </AppText>
-            </View>
-          ))}
-        </View>
+        <AppText variant="title" style={styles.title}>Crie sua conta</AppText>
 
         <FormError message={error} />
         <TextField label="Nome completo" icon="person" value={form.name} onChangeText={set('name')} error={fieldErrors.name} />
@@ -96,15 +70,6 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: spacing.xl, paddingTop: spacing.sm, paddingBottom: 48 },
-  subtitle: { marginTop: spacing.xs, marginBottom: spacing.lg },
-  benefits: { gap: spacing.sm, marginBottom: spacing.xl },
-  benefit: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  benefitIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.secondarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  title: { marginBottom: spacing.lg },
+
 });

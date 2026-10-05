@@ -30,7 +30,7 @@ async function pickAndUpload(
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Permissão necessária', 'Autorize o acesso nas configurações do aparelho para adicionar fotos.');
+    Alert.alert('Permissão necessária', 'Autorize o acesso às fotos.');
     return [];
   }
 
@@ -94,7 +94,7 @@ export function PhotoPicker({
   aspect = [4, 3],
   folder,
   title = 'Adicione uma foto',
-  hint = 'Uma boa foto ajuda na identificação e aumenta as chances de adoção.',
+  hint,
   deferUpload = false,
 }: PhotoPickerProps) {
   const [busy, setBusy] = useState(false);
@@ -137,9 +137,11 @@ export function PhotoPicker({
         <Icon name="camera" size={28} color={colors.primary} />
       </View>
       <AppText variant="subheading">{title}</AppText>
-      <AppText variant="caption" color={colors.textMuted} style={{ textAlign: 'center' }}>
-        {hint}
-      </AppText>
+      {hint ? (
+        <AppText variant="caption" color={colors.textMuted} style={{ textAlign: 'center' }}>
+          {hint}
+        </AppText>
+      ) : null}
       <View style={styles.emptyActions}>
         {canUseCamera && <Button title="Câmera" icon="camera" variant="secondary" onPress={() => pick('camera')} style={{ flex: 1 }} />}
         <Button title="Galeria" icon="gallery" variant="outline" onPress={() => pick('library')} style={{ flex: 1 }} />

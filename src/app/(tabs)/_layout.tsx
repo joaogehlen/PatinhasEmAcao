@@ -12,10 +12,12 @@ import { colors, fonts, rules } from '@/presentation/theme';
  * Perfil — e é no Perfil que ele encontra o caminho para criar conta.
  */
 export default function TabsLayout() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
 
+  // Trocar de conta (ou sair do modo convidado) remonta as abas e volta ao Mapa.
   return (
     <Tabs
+      key={`${user?.id}:${user?.isGuest}`}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

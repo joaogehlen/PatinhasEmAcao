@@ -26,6 +26,22 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/**
+ * Visitante que ainda não denunciou nada: existe só no aparelho, sem linha no
+ * banco. A sessão anônima é criada no envio da primeira denúncia
+ * (pendingReports.send), que troca o id vazio pelo da sessão.
+ */
+const LOCAL_GUEST: User = {
+  id: '',
+  name: 'Visitante',
+  email: null,
+  phone: null,
+  role: 'morador',
+  isGuest: true,
+  createdAt: '',
+  updatedAt: '',
+};
+
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ServicesContext.Provider value={services}>
@@ -39,13 +55,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sem sessão salva, o app abre direto no mapa como convidado; o login fica
-  // a um toque, no perfil. Falhou (offline, por ex.)? Cai na tela de entrada.
+  // Sem sessão salva, o app abre direto no mapa como visitante local; o login
+  // fica a um toque, no perfil. Falhou? Cai na tela de entrada.
   useEffect(() => {
     auth
       .restoreSession()
-      .then((restored) => restored ?? auth.continueAsGuest())
-      .then(setUser)
+      .then((restored) => setUser(restored ?? LOCAL_GUEST))
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, [auth]);
@@ -55,15 +70,15 @@ function AuthProvider({ children }: { children: ReactNode }) {
    * sessão pode expirar, ser revogada ou cair por troca de senha em outro
    * aparelho — o app precisa reagir a isso, e não descobrir na próxima escrita.
    */
-  useEffect(() => auth.onAuthStateChange(setUser), [auth]);
+  // Sessão encerrada vira visitante local, igual a quem abre o app pela primeira vez.
+  useEffect(() => auth.onAuthStateChange((next) => setUser(next ?? LOCAL_GUEST)), [auth]);
 
   const login = useCallback(async (input: unknown) => setUser(await auth.login(input)), [auth]);
   const register = useCallback(async (input: unknown) => setUser(await auth.register(input)), [auth]);
-  const continueAsGuest = useCallback(async () => setUser(await auth.continueAsGuest()), [auth]);
+  const continueAsGuest = useCallback(async () => setUser((current) => (current?.isGuest ? current : LOCAL_GUEST)), []);
   const logout = useCallback(async () => {
     await auth.logout();
-    // Sair volta para o mapa como convidado, igual a quem abre o app pela primeira vez.
-    setUser(await auth.continueAsGuest().catch(() => null));
+    setUser(LOCAL_GUEST);
   }, [auth]);
   const can = useCallback((permission: Permission) => hasPermission(user, permission), [user]);
 

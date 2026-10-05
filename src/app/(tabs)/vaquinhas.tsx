@@ -51,9 +51,6 @@ export default function VaquinhasScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <AppText variant="title">Vaquinhas</AppText>
-            <AppText variant="body" color={colors.textMuted}>
-              Toque numa campanha para ver os detalhes e copiar a chave PIX. A doação é feita pelo seu banco.
-            </AppText>
             <FormError message={error} />
           </View>
         }
@@ -67,11 +64,6 @@ export default function VaquinhasScreen() {
           loading ? null : (
             <EmptyState
               title="Nenhuma vaquinha aberta"
-              message={
-                can('vaquinha:manage')
-                  ? 'Crie a primeira campanha para começar a arrecadar.'
-                  : 'Quando a ONG abrir uma campanha, ela aparece aqui.'
-              }
             />
           )
         }

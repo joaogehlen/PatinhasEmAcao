@@ -96,7 +96,7 @@ export default function MapScreen() {
         <View style={[styles.notice, { bottom: insets.bottom + 150 }]}>
           <Icon name="location" size={18} color={colors.primary} />
           <AppText variant="caption" color={colors.textSoft} style={{ flex: 1 }}>
-            Sem acesso à localização, a denúncia vai sem o ponto no mapa. Autorize nas configurações do aparelho.
+            Localização desativada
           </AppText>
         </View>
       )}

@@ -76,16 +76,14 @@ export default function VaquinhaDetailScreen() {
   async function copyPix() {
     if (!vaquinha.pixKey) return;
     await Clipboard.setStringAsync(vaquinha.pixKey);
-    Alert.alert('Chave copiada', 'Cole no aplicativo do seu banco para fazer a doação.');
+    Alert.alert('Chave copiada');
   }
 
   function confirmToggleActive() {
     const closing = vaquinha.active;
     Alert.alert(
       closing ? 'Encerrar campanha' : 'Reabrir campanha',
-      closing
-        ? 'A vaquinha some para os moradores e para de receber lançamentos. Dá para reabrir depois.'
-        : 'A vaquinha volta a aparecer para os moradores.',
+      undefined,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -195,7 +193,7 @@ export default function VaquinhaDetailScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="label" color={colors.textMuted}>
-                  Chave PIX · toque para copiar
+                  Chave PIX
                 </AppText>
                 <AppText variant="record" numberOfLines={1}>
                   {vaquinha.pixKey}
@@ -204,7 +202,7 @@ export default function VaquinhaDetailScreen() {
             </Pressable>
           ) : (
             <AppText variant="caption" color={colors.textMuted}>
-              A ONG ainda não informou a chave PIX desta campanha.
+              Chave PIX não informada.
             </AppText>
           )}
 
@@ -265,11 +263,7 @@ export default function VaquinhaDetailScreen() {
           )}
 
           <View style={{ gap: spacing.md }}>
-            <SectionHeader
-              title="Arrecadação"
-              icon="clock"
-              subtitle={entradas.length > 0 ? `${entradas.length} lançamento(s)` : 'Valores informados pela ONG'}
-            />
+            <SectionHeader title="Arrecadação" icon="clock" />
 
             {canManage && vaquinha.active && <EntradaForm vaquinhaId={vaquinha.id} onSaved={reload} />}
 
@@ -313,10 +307,6 @@ export default function VaquinhaDetailScreen() {
                 ))}
               </Card>
             )}
-
-            <AppText variant="caption" color={colors.textMuted}>
-              O app não recebe nem confirma doações: os valores são lançados pela ONG.
-            </AppText>
           </View>
         </View>
       </ScrollView>
@@ -374,7 +364,7 @@ function ProgressCard({ vaquinha, progress, remaining }: { vaquinha: Vaquinha; p
         <View style={[styles.progressFill, !vaquinha.active && styles.progressFillClosed, { width: `${progress * 100}%` }]} />
       </View>
       <AppText variant="bodyStrong" color={remaining === 0 ? colors.primary : colors.textSoft}>
-        {remaining === 0 ? 'Meta atingida. Obrigado a quem ajudou!' : `Faltam ${formatMoney(remaining)} para a meta`}
+        {remaining === 0 ? 'Meta atingida' : `Faltam ${formatMoney(remaining)} para a meta`}
       </AppText>
     </Card>
   );

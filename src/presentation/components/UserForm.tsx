@@ -70,11 +70,6 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
             style={isEditing ? { color: colors.textMuted } : undefined}
             error={fieldErrors.email}
           />
-          {isEditing && (
-            <AppText variant="caption" color={colors.textMuted}>
-              O e-mail não pode ser alterado por aqui.
-            </AppText>
-          )}
           <TextField
             label="Telefone (opcional)"
             icon="phone"

@@ -192,7 +192,7 @@ export default function AnimalDetailScreen() {
           )}
 
           <View style={styles.section}>
-            <SectionHeader title="Jornada" icon="sparkles" subtitle="Do resgate ao novo lar" />
+            <SectionHeader title="Jornada" icon="sparkles" />
             <Card>
               <View style={styles.journey}>
                 {JOURNEY.map((step, index) => {
@@ -226,7 +226,7 @@ export default function AnimalDetailScreen() {
               registro deixar de ser uma denúncia parada. */}
           {nextStatuses.length > 0 && (
             <View style={styles.section}>
-              <SectionHeader title="Avançar" icon="check" subtitle="Registra a mudança no histórico" />
+              <SectionHeader title="Avançar" icon="check" />
               <TextField
                 label="Observação (opcional)"
                 value={statusNote}
@@ -264,7 +264,7 @@ export default function AnimalDetailScreen() {
 
           {campaigns.length > 0 && (
             <View style={styles.section}>
-              <SectionHeader title="Ajude este animal" icon="donate" subtitle="Vaquinhas abertas para ele" />
+              <SectionHeader title="Ajude este animal" icon="donate" />
               <View style={{ gap: spacing.sm }}>
                 {campaigns.map((campaign) => (
                   <Pressable

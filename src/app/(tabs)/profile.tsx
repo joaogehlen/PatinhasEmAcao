@@ -1,11 +1,13 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { USER_ROLE_LABELS } from '@/domain/entities/User';
+import { keepGuestReports } from '@/infrastructure/pendingReports';
 import { AppText, Avatar, Button, Card, ListItem, Pill } from '@/presentation/components/ui';
 import { formatDate } from '@/presentation/format';
-import { useAuth, useCurrentUser } from '@/presentation/providers/AppProviders';
+import { useAuth, useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
 import { colors, radius, roleStyles, rules, spacing } from '@/presentation/theme';
 
 const SOBRE =
@@ -14,6 +16,7 @@ const SOBRE =
 export default function ProfileScreen() {
   const user = useCurrentUser();
   const { logout } = useAuth();
+  const { animals } = useServices();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -25,17 +28,28 @@ export default function ProfileScreen() {
   }
 
   /**
-   * Entrar em outra conta abandona a sessão anônima deste aparelho, e com ela
-   * as denúncias. O aviso precisa dizer isso. A sessão só troca quando o login
-   * der certo: voltar da tela de entrada mantém o convidado como estava.
+   * Entrar em outra conta abandona a sessão anônima deste aparelho. As
+   * denúncias dela ficam guardadas no aparelho, mas não passam para a conta —
+   * o aviso diz isso, e só aparece se houver alguma. Como convidado, list()
+   * devolve exatamente as dele (RLS) mais as da fila offline. A sessão só troca
+   * quando o login der certo: voltar da tela de entrada mantém o convidado.
    */
-  function confirmLeaveGuest() {
+  async function confirmLeaveGuest() {
+    const mine = await animals.list().catch(() => []);
+    if (mine.length === 0) return router.push('/sign-in');
     Alert.alert(
       'Entrar em outra conta',
-      'As denúncias que você registrou como convidado ficam só neste modo e você deixa de vê-las. Para levá-las junto, use "Criar conta".',
+      `Você registrou ${mine.length === 1 ? '1 denúncia' : `${mine.length} denúncias`} como convidado. Elas não passam para a outra conta.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Entrar assim mesmo', style: 'destructive', onPress: () => router.push('/sign-in') },
+        {
+          text: 'Entrar assim mesmo',
+          style: 'destructive',
+          onPress: () => {
+            keepGuestReports(mine);
+            router.push('/sign-in');
+          },
+        },
       ],
     );
   }
@@ -55,27 +69,27 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AppText variant="title">Você está sem conta</AppText>
-        <AppText variant="body" color={colors.textSoft}>
-          Dá para denunciar e acompanhar o que você mesmo registrou. Com uma conta, você vê todos os animais,
-          acompanha os resgates e enxerga as vaquinhas abertas.
-        </AppText>
 
-        <View style={styles.guestWarning}>
-          <AppText variant="caption" color={colors.textSoft}>
-            Suas denúncias estão guardadas apenas neste aparelho. Se desinstalar o app ou limpar os dados, você
-            perde o acesso a elas — criar uma conta leva tudo junto.
-          </AppText>
+        <View style={styles.guestAvatar}>
+          <Avatar size={140} />
         </View>
+
+        {/* Some nas pontas para se misturar ao fundo. */}
+        <LinearGradient
+          colors={[`${colors.primary}00`, colors.primary, `${colors.primary}00`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.guestRule}
+        />
 
         <View style={{ gap: spacing.sm }}>
           <Button title="Criar conta" onPress={() => router.push('/sign-up')} />
-          <Button title="Já tenho conta" variant="outline" onPress={confirmLeaveGuest} />
+          <Button title="Já tenho conta" variant="outline" onPress={() => void confirmLeaveGuest()} />
         </View>
 
         <ListItem
           icon="info"
           title="Sobre o Patinhas em Ação"
-          subtitle="Nossa missão"
           onPress={() => Alert.alert('Patinhas em Ação', SOBRE)}
         />
       </ScrollView>
@@ -106,21 +120,18 @@ export default function ProfileScreen() {
           <ListItem
             icon="person"
             title="Meus dados"
-            subtitle="Nome e telefone"
             onPress={() => router.push('/profile/edit')}
           />
           <View style={styles.separator} />
           <ListItem
             icon="key"
             title="Alterar senha"
-            subtitle="Mantenha sua conta segura"
             onPress={() => router.push('/profile/password')}
           />
           <View style={styles.separator} />
           <ListItem
             icon="info"
             title="Sobre o Patinhas em Ação"
-            subtitle="Nossa missão"
             onPress={() => Alert.alert('Patinhas em Ação', SOBRE)}
           />
         </Card>
@@ -146,11 +157,6 @@ const styles = StyleSheet.create({
   separator: { height: rules.hair, backgroundColor: colors.border, marginLeft: 70 },
 
   guestBody: { padding: spacing.xl, gap: spacing.lg },
-  guestWarning: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    borderWidth: rules.hair,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
+  guestAvatar: { alignItems: 'center', marginVertical: spacing.xl },
+  guestRule: { height: 1, marginTop: -spacing.md, marginBottom: spacing.sm },
 });

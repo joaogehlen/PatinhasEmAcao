@@ -9,6 +9,7 @@ import type { AnimalFilters } from '@/domain/repositories/AnimalRepository';
 
 import { deleteLocalPhoto, isLocalPhoto, persistPhoto } from './photoStorage';
 import { SupabaseAnimalRepository } from './repositories/SupabaseAnimalRepository';
+import { supabase } from './supabase/client';
 import { isOffline } from './supabase/mappers';
 
 /**
@@ -26,20 +27,33 @@ import { isOffline } from './supabase/mappers';
  */
 
 const STORAGE_KEY = 'patinhas.pendingReports';
+/** Denúncias de sessões de convidado que este aparelho já deixou para trás. */
+const GUEST_REPORTS_KEY = 'patinhas.guestReports';
 const TASK_NAME = 'patinhas-send-pending-reports';
 
 const remote = new SupabaseAnimalRepository();
 
-function read(): Animal[] {
+function read(key = STORAGE_KEY): Animal[] {
   try {
-    return JSON.parse(globalThis.localStorage.getItem(STORAGE_KEY) ?? '[]') as Animal[];
+    return JSON.parse(globalThis.localStorage.getItem(key) ?? '[]') as Animal[];
   } catch {
     return [];
   }
 }
 
-function write(items: Animal[]): void {
-  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+function write(items: Animal[], key = STORAGE_KEY): void {
+  globalThis.localStorage.setItem(key, JSON.stringify(items));
+}
+
+/**
+ * Guarda no aparelho as denúncias do convidado antes de ele entrar em outra
+ * conta. A sessão anônima some com a troca, e com ela a RLS que mostrava essas
+ * denúncias a uma nova sessão de convidado. A cópia local é uma foto do momento:
+ * quando o servidor devolve o mesmo animal, a versão dele vence.
+ */
+export function keepGuestReports(animals: Animal[]): void {
+  const ids = new Set(animals.map((animal) => animal.id));
+  write([...read(GUEST_REPORTS_KEY).filter((item) => !ids.has(item.id)), ...animals], GUEST_REPORTS_KEY);
 }
 
 function upsert(animal: Animal): void {
@@ -74,6 +88,22 @@ async function hasInternet(): Promise<boolean> {
  */
 async function send(animal: Animal): Promise<void> {
   let current = animal;
+  // O visitante só ganha sessão anônima aqui, na primeira denúncia enviada:
+  // abrir o app ou sair da conta não cria usuário no banco. O AuthProvider
+  // recebe o SIGNED_IN e troca o visitante local pelo convidado de verdade.
+  const { data } = await supabase.auth.getSession();
+  let sessionUserId = data.session?.user.id;
+  if (!sessionUserId) {
+    const { data: anon, error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+    sessionUserId = anon.user?.id;
+  }
+  // Registrada como convidado e enviada já em outra conta: a RLS exige que o
+  // autor seja quem está na sessão, então a denúncia passa para ela.
+  if (sessionUserId && sessionUserId !== current.createdBy) {
+    current = { ...current, createdBy: sessionUserId };
+    upsert(current);
+  }
   const localUri = current.photoUri && isLocalPhoto(current.photoUri) ? current.photoUri : null;
   if (localUri) {
     current = { ...current, photoUri: await persistPhoto(localUri) };
@@ -174,18 +204,26 @@ export class OfflineFirstAnimalRepository extends SupabaseAnimalRepository {
 
   override async list(filters: AnimalFilters = {}): Promise<Animal[]> {
     const pending = read().filter((animal) => matches(animal, filters)).reverse();
+    const kept = read(GUEST_REPORTS_KEY).filter((animal) => matches(animal, filters)).reverse();
+    let sent: Animal[];
     try {
-      const sent = await super.list(filters);
-      return [...pending, ...sent.filter((animal) => !pending.some((item) => item.id === animal.id))];
+      sent = await super.list(filters);
     } catch (error) {
       // Sem rede, quem denunciou ainda vê o que registrou.
-      if (pending.length > 0 && isOfflineError(error)) return pending;
-      throw error;
+      if (pending.length + kept.length === 0 || !isOfflineError(error)) throw error;
+      sent = [];
     }
+    // Ordem de preferência: fila (mais nova que tudo), servidor, cópia guardada.
+    const seen = new Set<string>();
+    return [...pending, ...sent, ...kept].filter((animal) => !seen.has(animal.id) && seen.add(animal.id));
   }
 
   override async findById(id: string): Promise<Animal | null> {
-    return read().find((animal) => animal.id === id) ?? super.findById(id);
+    const pending = read().find((animal) => animal.id === id);
+    if (pending) return pending;
+    const kept = read(GUEST_REPORTS_KEY).find((animal) => animal.id === id);
+    if (!kept) return super.findById(id);
+    return (await super.findById(id).catch(() => null)) ?? kept;
   }
 
   override async statusHistory(animalId: string): Promise<AnimalStatusChange[]> {

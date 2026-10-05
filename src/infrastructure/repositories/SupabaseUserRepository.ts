@@ -16,7 +16,8 @@ import { toUser, translateError } from '../supabase/mappers';
  */
 export class SupabaseUserRepository implements UserRepository {
   async list(filters: UserFilters = {}): Promise<User[]> {
-    let query = supabase.from('profiles').select('*').order('name', { ascending: true });
+    // Convidado é o perfil sem e-mail (sessão anônima): não é usuário a gerenciar.
+    let query = supabase.from('profiles').select('*').not('email', 'is', null).order('name', { ascending: true });
 
     const search = filters.search?.trim();
     if (search) {

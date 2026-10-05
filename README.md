@@ -146,35 +146,64 @@ Dois perfis — **morador** e **admin** — mais um modo sem conta, o **convidad
 
 ## Entregas
 
-**Sprint 1**
+O backlog completo, com requisitos (RF) e estimativas, está no documento de entrega. Os códigos PBxx abaixo são os mesmos de lá. O texto pronto para o documento da Sprint 2 e o planejamento da Sprint 3 ficam em [docs/ENTREGA-SPRINT-2-3.md](docs/ENTREGA-SPRINT-2-3.md).
 
-- [x] Arquitetura em camadas, com migrações versionadas
-- [x] Cadastro e login, com sessão persistente
-- [x] CRUD de animais com foto (câmera ou galeria), filtros e busca
-- [x] CRUD de usuários (admin), edição de perfil e troca de senha
-- [x] Timeline de status registrada no banco
-- [x] Testes de regras de domínio e serviços
+### Sprint 1 — Base e Cadastro (03/08 a 14/09/2026) ✅
 
-**Migração para o Supabase**
+Protótipo funcional, arquitetura, banco e o cadastro completo de animais e usuários.
 
-- [x] Esquema, RLS, triggers e Storage no Postgres
-- [x] Autenticação pelo Supabase Auth — nenhuma senha processada pelo app
-- [x] Dados compartilhados entre aparelhos: a denúncia chega ao admin
-- [x] Máquina de estados do resgate validada também no servidor
-- [ ] Denúncia offline — hoje o app é **online-only** (ver PRODUCT.md)
+| PB | Entrega | RF |
+| --- | --- | --- |
+| PB01–PB03 | Requisitos, casos de uso, modelagem; arquitetura em camadas (domínio, aplicação, infraestrutura, apresentação); banco com migrações e dados de demonstração | — |
+| PB04 | Cadastro (sempre como morador) e login com sessão persistente | RF0001, RF0002 |
+| PB05 | Gestão de usuários pelo admin (listar, buscar, filtrar, criar, editar, definir perfil); edição do próprio perfil e troca de senha com a senha atual | RF0003, RF0004 |
+| PB06 | Registro de animal com foto (câmera ou galeria), espécie, porte, sexo, idade, temperamento ("Bravo" sinaliza cuidado), descrição e saúde | RF0005 |
+| PB07 | Catálogo com busca por nome/descrição, filtro de situação sempre visível com contagem, espécie e porte em painel recolhível | RF0006 |
+| PB08 | Edição e exclusão pelo admin (adotados não são excluídos); histórico de situações com linha do tempo e jornada na tela do animal | RF0007, RF0008 |
+| PB09 | Protótipo e identidade visual escura (laranja e bege sobre café, Archivo + Chivo Mono) | — |
+| PB10 | Testes automatizados de domínio e serviços com repositórios em memória | — |
+| PB11 | Documentação da Entrega 1 | — |
 
-**Sprint 2 (concluída)**
+### Sprint 2 — Localização e Status ✅
 
-- [x] Perfis reduzidos a dois (morador, admin) — o que era do voluntário passou ao admin
-- [x] Modo convidado: sessão anônima que denuncia e acompanha só as próprias, sem cadastro
-- [x] GPS na denúncia e mapa das ocorrências (tela inicial), com marcador colorido por status
-- [x] Tela de alteração de status do animal, aplicando `canTransition` também no cliente, com observação opcional gravada no histórico
-- [x] Vaquinhas: capa, resumo, texto de detalhes, galeria de até 10 fotos e vínculo opcional com um animal
-- [x] Vaquinhas: lançamentos de valor arrecadado (com observação e data) que movem a barra de progresso; remoção de lançamento errado; encerrar/reabrir
-- [x] Página da vaquinha com progresso, quanto falta, chave PIX copiável, fotos em tela cheia e histórico de arrecadação; vaquinhas abertas aparecem na página do animal
-- [x] Exclusão lógica de usuário (`deleted_at` + RPC `soft_delete_user`), sem depender da service_role key; Edge Function `admin-users` só cria contas
+Mapas e GPS, fluxo de status do resgate, migração para o Supabase, modo convidado, denúncia sem conexão e campanhas de arrecadação.
 
-## Próximas sprints
+| PB | Entrega | RF |
+| --- | --- | --- |
+| PB12 | GPS capturado ao abrir o formulário de denúncia, atualizável com um toque; denúncia aceita sem coordenada, com aviso de que não aparecerá no mapa | RF0009 |
+| PB13 | Mapa como tela inicial: localização do usuário, marcador por animal na cor da situação, cartão com foto e nome. Google Maps no Android, Apple Maps no iOS | RF0010 |
+| PB14 | Alteração da situação pelo admin, oferecendo só as transições válidas, com **observação opcional** gravada no histórico. A transição é validada também por trigger no banco, que grava o histórico | RF0011 |
+| PB17 | Persistência no Supabase: Postgres com RLS, Auth e Storage para as fotos; dados compartilhados entre aparelhos | RNF0002, RNF0010 |
+| PB25 | **Denúncia sem conexão**: sem internet, a denúncia (com foto e GPS) fica numa fila no aparelho e é enviada sozinha quando a conexão volta — ao reconectar, ao reabrir o app ou por tarefa em segundo plano. Aparece como "Pendente" no mapa, no catálogo e no detalhe. O id é gerado no aparelho, então reenviar nunca duplica | RF0018 |
+| PB30 | Modo convidado: sessão anônima que denuncia e acompanha só as próprias denúncias; cadastro posterior preserva as denúncias (mesmo id) | UC15 |
+| PB16 | Vaquinhas completas: capa, resumo, texto de detalhes, galeria de até 10 fotos, vínculo opcional com um animal, meta e chave PIX copiável. O admin **lança os valores recebidos** (valor, observação, data) e cada lançamento move a barra de progresso; o total é a soma dos lançamentos, calculada pelo banco. Encerrar e reabrir campanha; lançamento errado é removido e lançado de novo. Vaquinhas abertas aparecem na página do animal | RF0014, UC08, UC16 |
+| PB31 | Exclusão lógica de usuário (`deleted_at`, RPC `soft_delete_user`), preservando a autoria dos registros; a Edge Function `admin-users` ficou só com a criação de contas | RF0003 |
+| PB22 | Interface na identidade escura, revisada em auditoria de acessibilidade (alvos de toque de 44pt, contraste, leitor de tela) | — |
 
-- **Sprint 3**: formulário de adoção
-- **Final**: polimento de UI/UX, testes de usabilidade e prestação de contas
+Ficou fora: **PB28 – Fila de casos abertos** (RF0021), remanejado para a sprint final. Entrou antecipado: **PB25 – Denúncia sem conexão**, previsto para a Sprint 3.
+
+### Sprint 3 — Interação e Social (planejada)
+
+| PB | Entrega prevista | RF | Estimativa |
+| --- | --- | --- | --- |
+| PB24 | **Mural de notícias da ONG** — ver detalhes abaixo | RF0017 | 12 h |
+| PB15 | Formulário digital de adoção com acompanhamento da solicitação | RF0013 | 12 h |
+| PB23 | Foto de perfil, exibida também no histórico do animal | RF0016 | 6 h |
+| PB18 | Central de avisos dentro do app (push fica para quando houver build própria) | RF0012 | 12 h |
+| | | **Total** | **42 h** |
+
+**Mural de notícias (PB24).** Posts curtos da ONG — resgate concluído, campanha nova, mutirão — com título, texto, capa, até 6 fotos e vínculo opcional com um animal ou uma vaquinha, que aparece como cartão clicável. Só o admin publica, edita, exclui e fixa um post no topo; morador e admin leem; o convidado não vê (RF0017: "usuários com conta"). O Mural vira uma aba, e a gestão de usuários do admin passa para dentro do Perfil, mantendo cinco abas.
+
+**Formulário de adoção (PB15).** Disponível só para animais "Disponível para adoção". Perguntas sobre moradia, pátio, outros animais, crianças, experiência e motivo. A solicitação segue *Enviada → Em análise → Aprovada / Recusada*; o morador acompanha em "Minhas solicitações" e o admin avalia numa fila. Um pedido aberto por pessoa e animal. Aprovar não marca o animal como adotado: isso continua no fluxo de status, que deixa rastro no histórico.
+
+**Central de avisos (PB18).** Denúncia nova avisa a equipe da ONG; mudança de situação avisa quem denunciou. Fica dentro do app, com contador, porque o Expo Go não entrega push. Push real exige *development build* (EAS) e fica para quando o app deixar de depender do Expo Go.
+
+**Fora do escopo:** PB26 – Lares temporários (RF0019) foi retirado do projeto por decisão da equipe.
+
+### Sprint final — Refinamento e QA
+
+- PB19 / PB29 — Prestação de contas visual e periódica (RF0015, RF0022, RF0023)
+- PB20 — Polimento de UI/UX e testes de usabilidade com a ONG
+- PB27 — Acompanhamento pós-adoção (RF0020)
+- PB28 — Fila de casos abertos (RF0021), vindo da Sprint 2
+- PB21 — Documentação final e apresentação

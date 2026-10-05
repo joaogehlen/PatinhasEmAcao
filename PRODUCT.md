@@ -33,14 +33,14 @@ O app acompanha o animal individual do primeiro avistamento até a adoção, em 
 
 ## Capabilities and Constraints
 
-**Já existe (Sprint 1):** cadastro e login com sessão persistente; três perfis com permissões distintas; CRUD de animais com foto de câmera ou galeria; catálogo com busca e filtros por espécie, porte e status; CRUD de usuários para admin; edição de perfil e troca de senha; timeline de status gravada no banco.
+**Já existe (Sprints 1 e 2):** cadastro e login com sessão persistente; dois perfis (morador, admin) e o modo convidado, que denuncia sem conta; CRUD de animais com foto de câmera ou galeria; catálogo com busca e filtros; CRUD de usuários para admin com exclusão lógica; GPS na denúncia e mapa das ocorrências como tela inicial; alteração de status com observação e timeline gravada no banco; denúncia sem conexão, enviada quando a internet volta; vaquinhas com capa, detalhes, galeria, lançamentos de arrecadação e chave PIX copiável.
 
-**Planejado:** GPS e mapa das ocorrências, e o fluxo de alteração de status (Sprint 2); formulário de adoção e doações via PIX (Sprint 3).
+**Planejado (Sprint 3):** mural de notícias da ONG, formulário de adoção, foto de perfil e central de avisos dentro do app. Lares temporários saíram do escopo. **Sprint final:** prestação de contas, fila de casos abertos, pós-adoção e testes de usabilidade.
 
 **Restrições técnicas:**
 - Expo SDK 57 / React Native, distribuído via Expo Go — sem código nativo customizado.
 - **Backend no Supabase** (Postgres + Auth + Storage). Os dados são compartilhados entre aparelhos: a denúncia do morador aparece para o voluntário.
-- **O app é online-only.** Sem internet não é possível denunciar, e isso contradiz o contexto de uso ("a denúncia acontece na rua, a conexão pode estar ruim ou ausente"). Foi uma decisão consciente, tomada em 14/09/2026, para caber na Sprint 2: o app avisa com clareza em vez de fingir que gravou. Fila local de denúncias é a próxima parada quando houver fôlego.
+- **Só a denúncia funciona sem internet.** Ela fica numa fila no aparelho e é enviada quando a conexão volta (PB25), marcada como "Pendente" até lá. O resto do app — catálogo atualizado, vaquinhas, gestão — exige conexão.
 - As permissões existem em dois lugares: `src/domain/rules/permissions.ts` (esconde botão) e as policies de RLS no Postgres (regra que vale). Divergência entre as duas é bug silencioso.
 - Autenticação pelo Supabase Auth; nenhuma senha é processada ou guardada pelo app.
 - Aparelho-alvo é um celular modesto — desempenho e peso de imagem importam.

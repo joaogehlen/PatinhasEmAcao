@@ -30,6 +30,15 @@ jest.mock('@/infrastructure/repositories/SupabaseAnimalRepository', () => ({
     }
   },
 }));
+let mockSessionUserId: string | undefined;
+jest.mock('@/infrastructure/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: async () => ({ data: { session: mockSessionUserId ? { user: { id: mockSessionUserId } } : null } }),
+      signInAnonymously: async () => ({ data: { user: { id: 'anon' } }, error: null }),
+    },
+  },
+}));
 jest.mock('@/infrastructure/supabase/mappers', () => ({ isOffline: (m: string) => m.includes('Network request failed') }));
 
 import { flushPendingReports, isPendingReport, pendingReportsCount, sendOrQueue } from '@/infrastructure/pendingReports';
@@ -41,6 +50,16 @@ beforeEach(() => {
   mockCreate.mockReset().mockResolvedValue();
   mockPersistPhoto.mockClear();
   mockNetwork.isConnected = true;
+  mockSessionUserId = undefined;
+});
+
+test('convidado trocou de conta antes de enviar: a denúncia passa para a sessão atual', async () => {
+  mockNetwork.isConnected = false;
+  await sendOrQueue({ ...animal('g'), createdBy: 'convidado' });
+  mockNetwork.isConnected = true;
+  mockSessionUserId = 'conta';
+  await flushPendingReports();
+  expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ id: 'g', createdBy: 'conta' }));
 });
 
 test('sem rede: guarda e envia ao reconectar, subindo a foto local', async () => {
