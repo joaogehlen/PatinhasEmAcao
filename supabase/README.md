@@ -11,9 +11,11 @@ No painel do [Supabase](https://supabase.com): **New project**.
 
 ## 2. Criar o esquema
 
-**SQL Editor → New query**, cole o conteúdo de [`migrations/0001_init.sql`](migrations/0001_init.sql) e rode.
+**SQL Editor → New query**, cole e rode **cada arquivo de [`migrations/`](migrations/) em ordem** (`0001_init.sql` até `0006_vaquinhas_completas_nota_status.sql`).
 
-Isso cria as tabelas, os enums, os triggers, as policies de RLS e o bucket `animal-photos`.
+Isso cria as tabelas, os enums, os triggers, as policies de RLS e o bucket `animal-photos` (que guarda também as fotos das vaquinhas, na pasta `vaquinhas/`).
+
+Projeto que já estava rodando: aplique só as migrações que faltam. Todas podem ser rodadas de novo sem estragar nada.
 
 ## 3. Desativar a confirmação de e-mail
 
@@ -38,11 +40,11 @@ O trigger `on_auth_user_created` cria os perfis automaticamente, todos como `mor
 
 ## 5. Popular com os dados de exemplo
 
-**SQL Editor**, cole [`seed.sql`](seed.sql) e rode. Ele ajusta o nome do admin e cria os 7 animais de demonstração.
+**SQL Editor**, cole [`seed.sql`](seed.sql) e rode. Ele ajusta o nome do admin e cria os 7 animais e 2 vaquinhas de demonstração (com lançamentos de arrecadação).
 
 ## 6. Publicar a Edge Function
 
-Só é necessária para o administrador **criar** e **excluir** contas pelo app. O resto funciona sem ela.
+Só é necessária para o administrador **criar** contas pelo app. Excluir não depende dela: é exclusão lógica, pela função `soft_delete_user` do banco. O resto funciona sem ela.
 
 ```bash
 npx supabase login
@@ -75,7 +77,7 @@ As duas chaves do `.env` são públicas por design. Quem protege os dados é a R
 
 ## Alterando o esquema
 
-Nunca edite `0001_init.sql` depois de aplicado. Crie `0002_*.sql` com a alteração.
+Nunca edite uma migração depois de aplicada. Crie o próximo número (`0007_*.sql`) com a alteração.
 
 E lembre: as policies espelham `src/domain/rules/permissions.ts`. Mudou a matriz de permissões no código, mude a policy — e vice-versa.
 

@@ -1,5 +1,6 @@
 import { allowedNextStatuses, canTransition } from '@/domain/rules/animalStatus';
 import { hasPermission } from '@/domain/rules/permissions';
+import { parseMoney } from '@/presentation/format';
 
 describe('máquina de estados do animal', () => {
   it('segue o fluxo denunciado → resgatado → tratamento → disponível → adotado', () => {
@@ -46,5 +47,19 @@ describe('permissões por perfil', () => {
 
   it('usuário não logado não tem permissões', () => {
     expect(hasPermission(null, 'animal:create')).toBe(false);
+  });
+});
+
+describe('leitura de valor em reais', () => {
+  it('aceita vírgula ou ponto como decimal, e ponto como milhar', () => {
+    expect(parseMoney('50,50')).toBe(5050);
+    expect(parseMoney('50.50')).toBe(5050);
+    expect(parseMoney('50.5')).toBe(5050);
+    expect(parseMoney('1.234,56')).toBe(123456);
+    expect(parseMoney('1.500')).toBe(150000);
+    expect(parseMoney('R$ 1.234.567')).toBe(123456700);
+    expect(parseMoney('1234')).toBe(123400);
+    expect(parseMoney('')).toBeNull();
+    expect(parseMoney('abc')).toBeNull();
   });
 });

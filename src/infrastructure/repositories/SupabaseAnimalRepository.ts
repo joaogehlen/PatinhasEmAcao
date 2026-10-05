@@ -1,4 +1,4 @@
-import type { Animal, AnimalStatusChange } from '@/domain/entities/Animal';
+import type { Animal, AnimalStatus, AnimalStatusChange } from '@/domain/entities/Animal';
 import type { AnimalFilters, AnimalRepository } from '@/domain/repositories/AnimalRepository';
 
 import { supabase } from '../supabase/client';
@@ -50,6 +50,16 @@ export class SupabaseAnimalRepository implements AnimalRepository {
   async update(animal: Animal): Promise<void> {
     const { id, created_by: _createdBy, ...changes } = fromAnimal(animal);
     const { error } = await supabase.from('animals').update(changes).eq('id', id);
+    if (error) translateError(error);
+  }
+
+  /**
+   * O histórico é gravado pelo trigger guard_animal_status_change, que também
+   * valida a transição. A observação vai em status_note, um campo de passagem
+   * que o trigger copia para o histórico e zera.
+   */
+  async changeStatus(id: string, status: AnimalStatus, note: string | null): Promise<void> {
+    const { error } = await supabase.from('animals').update({ status, status_note: note }).eq('id', id);
     if (error) translateError(error);
   }
 

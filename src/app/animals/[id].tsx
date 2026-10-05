@@ -15,11 +15,14 @@ import {
   TEMPERAMENT_LABELS,
   type AnimalStatus,
 } from '@/domain/entities/Animal';
+import { vaquinhaProgress } from '@/domain/entities/Vaquinha';
+import { isPendingReport } from '@/infrastructure/pendingReports';
 import { Icon, type IconName } from '@/presentation/components/Icon';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
-import { AppText, Button, Card, FormError, Pill, SectionHeader } from '@/presentation/components/ui';
-import { describeError, formatAge, formatDate, formatDateTime } from '@/presentation/format';
+import { AppText, Button, Card, FormError, Pill, SectionHeader, TextField } from '@/presentation/components/ui';
+import { describeError, formatAge, formatDate, formatDateTime, formatMoney } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
+import { useKeyboardVisible } from '@/presentation/hooks/useKeyboardVisible';
 import { useAuth, useServices } from '@/presentation/providers/AppProviders';
 import { colors, gradients, radius, shadows, spacing, statusStyles } from '@/presentation/theme';
 
@@ -28,17 +31,28 @@ const JOURNEY: AnimalStatus[] = ANIMAL_STATUSES.filter((status) => status !== 'e
 
 export default function AnimalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { animals } = useServices();
+  const { animals, vaquinhas } = useServices();
   const { user, can } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const query = useCallback(
-    async () => ({ animal: await animals.getById(id), history: await animals.statusHistory(id) }),
-    [animals, id],
-  );
+  const canSeeVaquinhas = can('vaquinha:view');
+  const query = useCallback(async () => {
+    const [animal, history, campaigns] = await Promise.all([
+      animals.getById(id),
+      animals.statusHistory(id),
+      // Convidado não vê vaquinhas; para ele a seção simplesmente não existe.
+      // Falha aqui não pode derrubar a página do animal: a seção só some.
+      canSeeVaquinhas && user
+        ? vaquinhas.list(user, { animalId: id, activeOnly: true }).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+    return { animal, history, campaigns };
+  }, [animals, vaquinhas, canSeeVaquinhas, user, id]);
   const { data, error, loading, reload } = useFocusedQuery(query);
   const [changing, setChanging] = useState(false);
+  const [statusNote, setStatusNote] = useState('');
+  const keyboardVisible = useKeyboardVisible();
 
   if (loading && !data) {
     return <ActivityIndicator style={{ marginTop: 120 }} color={colors.primary} />;
@@ -51,16 +65,20 @@ export default function AnimalDetailScreen() {
     );
   }
 
-  const { animal, history } = data;
-  const canEdit = animals.canEdit(user, animal);
-  const canDelete = can('animal:delete') && animal.status !== 'adotado';
+  const { animal, history, campaigns } = data;
+  // Pendente ainda não existe no servidor: nada a editar, excluir ou avançar.
+  const pending = isPendingReport(animal.id);
+  const canEdit = !pending && animals.canEdit(user, animal);
+  const canDelete = !pending && can('animal:delete') && animal.status !== 'adotado';
   const journeyIndex = JOURNEY.indexOf(animal.status === 'em_tratamento' ? 'resgatado' : animal.status);
-  const nextStatuses = animals.allowedNextStatuses(user, animal);
+  const nextStatuses = pending ? [] : animals.allowedNextStatuses(user, animal);
 
   function confirmStatusChange(next: AnimalStatus) {
     Alert.alert(
       STATUS_LABELS[next],
-      `Marcar "${animal.name}" como ${STATUS_LABELS[next].toLowerCase()}? A mudança fica registrada no histórico.`,
+      `Marcar "${animal.name}" como ${STATUS_LABELS[next].toLowerCase()}? A mudança fica registrada no histórico${
+        statusNote.trim() ? ', com a observação.' : '.'
+      }`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -68,7 +86,8 @@ export default function AnimalDetailScreen() {
           onPress: async () => {
             setChanging(true);
             try {
-              await animals.changeStatus(user!, animal.id, next);
+              await animals.changeStatus(user!, animal.id, next, statusNote);
+              setStatusNote('');
               await reload();
             } catch (err) {
               Alert.alert('Não foi possível alterar', describeError(err).message);
@@ -102,7 +121,12 @@ export default function AnimalDetailScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + (canEdit || canDelete ? 110 : 32) }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + (canEdit || canDelete ? 110 : 32) }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <View style={styles.hero}>
           {animal.photoUri ? (
             <Image source={{ uri: animal.photoUri }} contentFit="cover" transition={300} style={StyleSheet.absoluteFill} />
@@ -125,7 +149,7 @@ export default function AnimalDetailScreen() {
                 </AppText>
               </View>
             </View>
-            <StatusBadge status={animal.status} />
+            <StatusBadge status={animal.status} pending={pending} />
           </View>
 
           <View style={styles.tiles}>
@@ -203,6 +227,14 @@ export default function AnimalDetailScreen() {
           {nextStatuses.length > 0 && (
             <View style={styles.section}>
               <SectionHeader title="Avançar" icon="check" subtitle="Registra a mudança no histórico" />
+              <TextField
+                label="Observação (opcional)"
+                value={statusNote}
+                onChangeText={setStatusNote}
+                placeholder="Ex.: recolhido na praça, levado à clínica"
+                maxLength={300}
+                multiline
+              />
               <View style={styles.statusActions}>
                 {nextStatuses.map((next) => {
                   const tone = statusStyles[next];
@@ -226,6 +258,36 @@ export default function AnimalDetailScreen() {
                     </Pressable>
                   );
                 })}
+              </View>
+            </View>
+          )}
+
+          {campaigns.length > 0 && (
+            <View style={styles.section}>
+              <SectionHeader title="Ajude este animal" icon="donate" subtitle="Vaquinhas abertas para ele" />
+              <View style={{ gap: spacing.sm }}>
+                {campaigns.map((campaign) => (
+                  <Pressable
+                    key={campaign.id}
+                    onPress={() => router.push({ pathname: '/vaquinhas/[id]', params: { id: campaign.id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Vaquinha ${campaign.title}: ${formatMoney(campaign.raisedCents)} de ${formatMoney(campaign.goalCents)}`}
+                    style={({ pressed }) => [styles.campaign, pressed && { opacity: 0.85 }]}
+                  >
+                    <View style={{ flex: 1, gap: spacing.xs }}>
+                      <AppText variant="bodyStrong" numberOfLines={1}>
+                        {campaign.title}
+                      </AppText>
+                      <View style={styles.campaignTrack}>
+                        <View style={[styles.campaignFill, { width: `${vaquinhaProgress(campaign) * 100}%` }]} />
+                      </View>
+                      <AppText variant="caption" color={colors.textMuted}>
+                        {formatMoney(campaign.raisedCents)} de {formatMoney(campaign.goalCents)}
+                      </AppText>
+                    </View>
+                    <Icon name="chevronRight" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ))}
               </View>
             </View>
           )}
@@ -257,7 +319,7 @@ export default function AnimalDetailScreen() {
         </View>
       </ScrollView>
 
-      {(canEdit || canDelete) && (
+      {(canEdit || canDelete) && !keyboardVisible && (
         <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
           {canDelete && <Button title="Excluir" icon="trash" variant="danger" onPress={confirmDelete} style={{ flex: 1 }} />}
           {canEdit && (
@@ -371,7 +433,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     ...shadows.floating,
   },
-  statusActions: { gap: spacing.sm },
+  statusActions: { gap: spacing.sm, marginTop: spacing.sm },
+  campaign: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...shadows.card,
+  },
+  campaignTrack: { height: 6, borderRadius: 3, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  campaignFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary },
   statusAction: {
     flexDirection: 'row',
     alignItems: 'center',

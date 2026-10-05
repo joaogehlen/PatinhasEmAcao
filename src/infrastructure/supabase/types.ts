@@ -62,7 +62,11 @@ export type VaquinhaRow = {
   id: string;
   title: string;
   description: string;
+  details: string | null;
+  cover_uri: string | null;
+  photo_uris: string[];
   goal_cents: number;
+  /** Soma das entradas, mantida pelo trigger vaquinha_sync_raised (0006). */
   raised_cents: number;
   pix_key: string | null;
   animal_id: string | null;
@@ -70,6 +74,15 @@ export type VaquinhaRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type VaquinhaEntradaRow = {
+  id: string;
+  vaquinha_id: string;
+  amount_cents: number;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type AnimalStatusHistoryRow = {
@@ -87,11 +100,16 @@ export type AnimalStatusHistoryRow = {
  * do banco. O id vai junto porque os serviços já geram o UUID antes de gravar.
  */
 export type AnimalInsert = Omit<AnimalRow, 'created_at' | 'updated_at'>;
-export type AnimalUpdate = Partial<Omit<AnimalRow, 'id' | 'created_at' | 'updated_at' | 'created_by'>>;
+export type AnimalUpdate = Partial<Omit<AnimalRow, 'id' | 'created_at' | 'updated_at' | 'created_by'>> & {
+  /** Campo de passagem: o trigger copia para o histórico e zera (0006). */
+  status_note?: string | null;
+};
 export type ProfileUpdate = Partial<Pick<ProfileRow, 'name' | 'phone' | 'role' | 'deleted_at'>>;
 export type StatusHistoryInsert = Omit<AnimalStatusHistoryRow, 'id' | 'changed_at'>;
-export type VaquinhaInsert = Omit<VaquinhaRow, 'created_at' | 'updated_at'>;
-export type VaquinhaUpdate = Partial<Omit<VaquinhaRow, 'id' | 'created_at' | 'updated_at' | 'created_by'>>;
+/** raised_cents fica de fora: quem escreve é o trigger, a partir das entradas. */
+export type VaquinhaInsert = Omit<VaquinhaRow, 'created_at' | 'updated_at' | 'raised_cents'>;
+export type VaquinhaUpdate = Partial<Omit<VaquinhaInsert, 'id' | 'created_by'>>;
+export type VaquinhaEntradaInsert = Omit<VaquinhaEntradaRow, 'created_at'>;
 
 export type Database = {
   public: {
@@ -123,6 +141,13 @@ export type Database = {
         Row: VaquinhaRow;
         Insert: VaquinhaInsert;
         Update: VaquinhaUpdate;
+        Relationships: [];
+      };
+      vaquinha_entradas: {
+        Row: VaquinhaEntradaRow;
+        Insert: VaquinhaEntradaInsert;
+        // Sem policy de UPDATE: lançamento errado é removido e lançado de novo.
+        Update: Partial<VaquinhaEntradaInsert>;
         Relationships: [];
       };
     };

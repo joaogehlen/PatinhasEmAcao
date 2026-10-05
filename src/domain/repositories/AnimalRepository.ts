@@ -32,8 +32,8 @@ export type AnimalInput = Pick<
 >;
 
 /**
- * Contrato de persistência. A implementação atual é SQLite; trocar por
- * Firebase na próxima fase exige apenas uma nova classe que implemente isto.
+ * Contrato de persistência. A implementação atual é Supabase; trocar o
+ * mecanismo exige apenas uma nova classe que implemente isto.
  */
 export interface AnimalRepository {
   list(filters?: AnimalFilters): Promise<Animal[]>;
@@ -41,6 +41,8 @@ export interface AnimalRepository {
   /** Insere o animal e a primeira entrada da timeline de forma atômica. */
   create(animal: Animal, initialStatus: AnimalStatusChange): Promise<void>;
   update(animal: Animal): Promise<void>;
+  /** Troca o status e registra a mudança no histórico, com a observação. */
+  changeStatus(id: string, status: AnimalStatus, note: string | null): Promise<void>;
   delete(id: string): Promise<void>;
   statusHistory(animalId: string): Promise<AnimalStatusChange[]>;
 }

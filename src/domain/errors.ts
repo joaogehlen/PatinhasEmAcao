@@ -24,6 +24,9 @@ export class NotFoundError extends DomainError {
 
 export class ConflictError extends DomainError {}
 
+/** Sem rede. Separado dos outros erros porque a denúncia é guardada e reenviada, não recusada. */
+export class OfflineError extends DomainError {}
+
 export class AuthenticationError extends DomainError {
   constructor(message = 'E-mail ou senha incorretos.') {
     super(message);

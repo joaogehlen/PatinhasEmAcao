@@ -1,9 +1,9 @@
 // =============================================================================
 // Edge Function: admin-users
 //
-// Criar e excluir contas exige a service_role key, que ignora toda a RLS e por
-// isso jamais pode estar dentro do app. Esta função roda no servidor, onde a
-// chave é segredo, e faz duas coisas antes de qualquer operação:
+// Criar conta por outra pessoa exige a service_role key, que ignora toda a RLS
+// e por isso jamais pode estar dentro do app. Esta função roda no servidor,
+// onde a chave é segredo, e faz duas coisas antes de criar a conta:
 //
 //   1. identifica quem chamou, pelo token do próprio usuário;
 //   2. confirma no banco que essa pessoa é administradora.
@@ -11,6 +11,11 @@
 // O app já checa a permissão antes de chamar, mas essa checagem é só para a
 // interface — qualquer um pode chamar esta URL com um token válido. A checagem
 // que vale é a daqui.
+//
+// Excluir usuário NÃO passa por aqui: a exclusão é lógica (deleted_at no
+// perfil) e mora na função soft_delete_user do banco (migração 0005). A
+// antiga ação "delete" apagava a conta de auth.users de verdade, contrariando
+// o RF0003, e foi removida.
 //
 // Deploy:
 //   npx supabase functions deploy admin-users --project-ref <seu-project-ref>
@@ -25,11 +30,7 @@ interface CreatePayload {
   email: string;
   phone: string | null;
   password: string;
-  role: 'morador' | 'voluntario' | 'admin';
-}
-
-interface DeletePayload {
-  id: string;
+  role: 'morador' | 'admin';
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -86,6 +87,9 @@ Deno.serve(async (req) => {
     if (!payload?.email || !payload?.password || !payload?.name || !payload?.role) {
       return json({ error: 'Dados incompletos para criar o usuário.' }, 400);
     }
+    if (!['morador', 'admin'].includes(payload.role)) {
+      return json({ error: 'Perfil inválido.' }, 400);
+    }
 
     const { data, error } = await admin.auth.admin.createUser({
       email: payload.email,
@@ -114,32 +118,6 @@ Deno.serve(async (req) => {
     }
 
     return json(toUser(profile));
-  }
-
-  if (body.action === 'delete') {
-    const payload = body.payload as DeletePayload;
-    if (!payload?.id) return json({ error: 'Informe o usuário a excluir.' }, 400);
-
-    if (payload.id === callerUser.id) {
-      return json({ error: 'Você não pode excluir a própria conta.' }, 400);
-    }
-
-    // O trigger guard_profile_delete também barra o último admin, mas ele não
-    // enxerga auth.uid() quando a chamada vem daqui — repetimos a regra com a
-    // mensagem que a tela já sabe mostrar.
-    const { data: target } = await admin.from('profiles').select('role').eq('id', payload.id).single();
-    if (target?.role === 'admin') {
-      const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin');
-      if ((count ?? 0) <= 1) {
-        return json({ error: 'O sistema precisa de pelo menos um administrador.' }, 400);
-      }
-    }
-
-    // profiles cai junto por ON DELETE CASCADE.
-    const { error } = await admin.auth.admin.deleteUser(payload.id);
-    if (error) return json({ error: error.message }, 400);
-
-    return json({ ok: true });
   }
 
   return json({ error: `Ação desconhecida: ${body.action}` }, 400);

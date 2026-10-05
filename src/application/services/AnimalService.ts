@@ -6,7 +6,7 @@ import { allowedNextStatuses, canTransition } from '@/domain/rules/animalStatus'
 import { hasPermission } from '@/domain/rules/permissions';
 
 import type { Clock, IdGenerator } from '../ports';
-import { animalInputSchema } from '../validation/schemas';
+import { animalInputSchema, statusNoteSchema } from '../validation/schemas';
 import { validate } from '../validation/validate';
 
 export class AnimalService {
@@ -82,7 +82,7 @@ export class AnimalService {
    * grava a linha da timeline. Duplicidade proposital: a checagem daqui dá
    * mensagem boa e evita a ida à rede; a do banco é a que não dá para burlar.
    */
-  async changeStatus(actor: User, id: string, toStatus: AnimalStatus): Promise<Animal> {
+  async changeStatus(actor: User, id: string, toStatus: AnimalStatus, note?: string | null): Promise<Animal> {
     if (!hasPermission(actor, 'animal:changeStatus')) throw new ForbiddenError();
 
     const current = await this.getById(id);
@@ -93,9 +93,9 @@ export class AnimalService {
       );
     }
 
-    const updated: Animal = { ...current, status: toStatus, updatedAt: this.clock.nowIso() };
-    await this.animals.update(updated);
-    return updated;
+    const cleanNote = validate(statusNoteSchema, note ?? null);
+    await this.animals.changeStatus(id, toStatus, cleanNote);
+    return { ...current, status: toStatus, updatedAt: this.clock.nowIso() };
   }
 
   /** Estados para os quais este animal pode ir agora. Vazio para quem não pode mudar. */

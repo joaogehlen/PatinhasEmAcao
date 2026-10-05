@@ -71,7 +71,7 @@ src/
 ├── app/                 Telas (rotas do Expo Router)
 │   ├── (tabs)/          Mapa (`index`), Animais (`catalog`), Vaquinhas, Usuários, Perfil — cada aba só aparece se o perfil tem a permissão
 │   ├── animals/         Detalhe, registro (`new`) e edição de animal
-│   ├── vaquinhas/       Criação e edição de campanha (admin)
+│   ├── vaquinhas/       Página da campanha (`[id]`), criação e edição (admin)
 │   ├── users/           Criação e edição de usuário (admin)
 │   ├── profile/         Editar dados e trocar senha
 │   └── sign-in.tsx, sign-up.tsx
@@ -120,18 +120,21 @@ deleted_at (exclusão lógica)  latitude, longitude  (GPS do celular na denúnci
 created_at, updated_at        created_by (FK → profiles, set null)
                               created_at, updated_at
 
-vaquinhas
-─────────
-id (PK), title, description
-goal_cents, raised_cents      (inteiro, em centavos)
-pix_key                       (nullable — chave PIX da ONG)
-animal_id                     (FK → animals, set null; null = campanha geral)
+vaquinhas                                       vaquinha_entradas
+─────────                                       ─────────────────
+id (PK), title, description (resumo)            id (PK)
+details (texto longo), cover_uri                vaquinha_id (FK → vaquinhas, cascade)
+photo_uris (até 10 URLs do Storage)             amount_cents  (> 0)
+goal_cents                                      note
+raised_cents  (soma das entradas, por trigger)  created_by (FK → profiles, set null)
+pix_key       (nullable — chave PIX da ONG)     created_at
+animal_id     (FK → animals, set null; null = campanha geral)
 active
 created_by (FK → profiles, set null)
 created_at, updated_at
 ```
 
-Senha e e-mail são do `auth.users`; `profiles.email` é espelho mantido por trigger e não pode ser alterado por update no perfil. `created_by` e `changed_by` são `ON DELETE SET NULL`: o registro do resgate sobrevive à exclusão da conta de quem o criou. Excluir um usuário pelo app é **exclusão lógica** (`deleted_at`, via RPC `soft_delete_user`): a conta some do app, mas a autoria dos registros permanece. `raised_cents` é digitado pela ONG — nenhum pagamento é confirmado pelo app.
+Senha e e-mail são do `auth.users`; `profiles.email` é espelho mantido por trigger e não pode ser alterado por update no perfil. `created_by` e `changed_by` são `ON DELETE SET NULL`: o registro do resgate sobrevive à exclusão da conta de quem o criou. Excluir um usuário pelo app é **exclusão lógica** (`deleted_at`, via RPC `soft_delete_user`): a conta some do app, mas a autoria dos registros permanece. O arrecadado de uma vaquinha é a soma dos lançamentos (`vaquinha_entradas`) que a ONG faz — o trigger `vaquinha_sync_raised` recalcula `raised_cents` em todo insert/update, então nenhum cliente consegue gravar um total. Nenhum pagamento é confirmado pelo app. A observação de uma mudança de status vai em `animals.status_note`, um campo de passagem que o trigger copia para o histórico e zera.
 
 As migrações ficam em `supabase/migrations/`. Para mudar o esquema, **adicione** um arquivo novo, sem editar os já aplicados. Ver [supabase/README.md](supabase/README.md).
 
@@ -147,8 +150,9 @@ Dois perfis — **morador** e **admin** — mais um modo sem conta, o **convidad
 | Alterar status do animal             | —                           | —       | ✅    |
 | Editar animal                        | —                           | —       | ✅    |
 | Excluir animal (exceto adotados)     | —                           | —       | ✅    |
-| Ver vaquinhas                        | —                           | ✅      | ✅    |
-| Criar, editar e excluir vaquinha     | —                           | —       | ✅    |
+| Ver vaquinhas abertas e lançamentos  | —                           | ✅      | ✅    |
+| Criar, editar, encerrar e excluir vaquinha | —                     | —       | ✅    |
+| Lançar e remover valor arrecadado    | —                           | —       | ✅    |
 | Listar e gerenciar usuários          | —                           | —       | ✅    |
 
 ## Entregas
@@ -175,9 +179,11 @@ Dois perfis — **morador** e **admin** — mais um modo sem conta, o **convidad
 - [x] Perfis reduzidos a dois (morador, admin) — o que era do voluntário passou ao admin
 - [x] Modo convidado: sessão anônima que denuncia e acompanha só as próprias, sem cadastro
 - [x] GPS na denúncia e mapa das ocorrências (tela inicial), com marcador colorido por status
-- [x] Tela de alteração de status do animal, aplicando `canTransition` também no cliente
-- [x] Vaquinhas: campanhas informativas (meta, chave PIX, progresso) para a ONG ou para um animal específico
-- [x] Exclusão lógica de usuário (`deleted_at` + RPC `soft_delete_user`), sem depender da service_role key
+- [x] Tela de alteração de status do animal, aplicando `canTransition` também no cliente, com observação opcional gravada no histórico
+- [x] Vaquinhas: capa, resumo, texto de detalhes, galeria de até 10 fotos e vínculo opcional com um animal
+- [x] Vaquinhas: lançamentos de valor arrecadado (com observação e data) que movem a barra de progresso; remoção de lançamento errado; encerrar/reabrir
+- [x] Página da vaquinha com progresso, quanto falta, chave PIX copiável, fotos em tela cheia e histórico de arrecadação; vaquinhas abertas aparecem na página do animal
+- [x] Exclusão lógica de usuário (`deleted_at` + RPC `soft_delete_user`), sem depender da service_role key; Edge Function `admin-users` só cria contas
 
 ## Próximas sprints
 

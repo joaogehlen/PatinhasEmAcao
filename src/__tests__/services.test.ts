@@ -1,6 +1,7 @@
 import { AnimalService } from '@/application/services/AnimalService';
 import { AuthService } from '@/application/services/AuthService';
 import { UserService } from '@/application/services/UserService';
+import { VaquinhaService } from '@/application/services/VaquinhaService';
 import {
   AuthenticationError,
   ConflictError,
@@ -14,12 +15,14 @@ import {
   FakeAuthProvider,
   InMemoryAnimalRepository,
   InMemoryUserRepository,
+  InMemoryVaquinhaRepository,
   fixedClock,
   insertUser,
   makeGuest,
   makeUser,
   sequentialIds,
   validAnimalInput,
+  validVaquinhaInput,
 } from './fakes';
 
 function authSetup() {
@@ -263,5 +266,132 @@ describe('AnimalService', () => {
     await expect(service.delete(makeUser('morador'), animal.id)).rejects.toBeInstanceOf(ForbiddenError);
     await repo.update({ ...animal, status: 'adotado' });
     await expect(service.delete(admin, animal.id)).rejects.toBeInstanceOf(DomainError);
+  });
+
+  it('admin avança o status com observação, que vai para o histórico', async () => {
+    const { service, repo } = setup();
+    const admin = makeUser('admin');
+    const animal = await service.create(makeUser('morador'), validAnimalInput);
+
+    const updated = await service.changeStatus(admin, animal.id, 'resgatado', '  Recolhida na praça  ');
+    expect(updated.status).toBe('resgatado');
+    expect((await repo.statusHistory(animal.id)).at(-1)).toEqual(
+      expect.objectContaining({ fromStatus: 'denunciado', toStatus: 'resgatado', note: 'Recolhida na praça' }),
+    );
+
+    await service.changeStatus(admin, animal.id, 'em_tratamento', '');
+    expect((await repo.statusHistory(animal.id)).at(-1)?.note).toBeNull();
+  });
+
+  it('recusa transição inválida e mudança feita por morador', async () => {
+    const { service, repo } = setup();
+    const animal = await service.create(makeUser('morador'), validAnimalInput);
+
+    await expect(service.changeStatus(makeUser('admin'), animal.id, 'adotado')).rejects.toBeInstanceOf(DomainError);
+    await expect(service.changeStatus(makeUser('morador'), animal.id, 'resgatado')).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(await repo.statusHistory(animal.id)).toHaveLength(1);
+    expect(service.allowedNextStatuses(makeUser('morador'), animal)).toEqual([]);
+    expect(service.allowedNextStatuses(makeUser('admin'), animal)).toEqual(['resgatado']);
+  });
+});
+
+describe('VaquinhaService', () => {
+  function setup() {
+    const repo = new InMemoryVaquinhaRepository();
+    const service = new VaquinhaService(repo, sequentialIds(), fixedClock);
+    return { repo, service, admin: makeUser('admin'), morador: makeUser('morador') };
+  }
+
+  it('só admin cria, com capa, galeria e arrecadado começando em zero', async () => {
+    const { service, admin, morador } = setup();
+    await expect(service.create(morador, validVaquinhaInput)).rejects.toBeInstanceOf(ForbiddenError);
+
+    const vaquinha = await service.create(admin, validVaquinhaInput);
+    expect(vaquinha).toEqual(
+      expect.objectContaining({ raisedCents: 0, coverUri: validVaquinhaInput.coverUri, details: null, createdBy: admin.id }),
+    );
+    expect(vaquinha.photoUris).toHaveLength(1);
+  });
+
+  it('valida meta, título e limite de fotos por campo', async () => {
+    const { service, admin } = setup();
+    const error = await service
+      .create(admin, {
+        ...validVaquinhaInput,
+        title: 'X',
+        goalCents: 0,
+        photoUris: Array.from({ length: 11 }, (_, i) => `https://exemplo.org/${i}.jpg`),
+      })
+      .catch((e) => e);
+    expect(Object.keys((error as ValidationError).fieldErrors).sort()).toEqual(['goalCents', 'photoUris', 'title']);
+  });
+
+  it('lançamentos somam no arrecadado e podem ser corrigidos', async () => {
+    const { service, admin, morador } = setup();
+    const { id } = await service.create(admin, validVaquinhaInput);
+
+    await service.addEntrada(admin, id, { amountCents: 50_000, note: 'Bazar de setembro' });
+    const afterSecond = await service.addEntrada(admin, id, { amountCents: 25_000, note: null });
+    expect(afterSecond.raisedCents).toBe(75_000);
+
+    const entradas = await service.entradas(morador, id);
+    expect(entradas.map((e) => e.amountCents)).toEqual([25_000, 50_000]);
+
+    const corrected = await service.removeEntrada(admin, id, entradas[0]!.id);
+    expect(corrected.raisedCents).toBe(50_000);
+  });
+
+  it('morador não lança valor; valor zero ou negativo é recusado', async () => {
+    const { service, admin, morador } = setup();
+    const { id } = await service.create(admin, validVaquinhaInput);
+
+    await expect(service.addEntrada(morador, id, { amountCents: 100, note: null })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(service.addEntrada(admin, id, { amountCents: 0, note: null })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    await expect(service.addEntrada(admin, id, { amountCents: -500, note: null })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+  });
+
+  it('campanha encerrada some para o morador e não recebe lançamento', async () => {
+    const { service, admin, morador } = setup();
+    const { id } = await service.create(admin, validVaquinhaInput);
+    await service.setActive(admin, id, false);
+
+    expect(await service.list(morador)).toEqual([]);
+    expect(await service.list(admin)).toHaveLength(1);
+    await expect(service.getById(morador, id)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.addEntrada(admin, id, { amountCents: 100, note: null })).rejects.toBeInstanceOf(
+      DomainError,
+    );
+
+    await service.setActive(admin, id, true);
+    const reopened = await service.addEntrada(admin, id, { amountCents: 100, note: null });
+    expect(reopened.raisedCents).toBe(100);
+
+    // O total de uma campanha encerrada também não pode baixar.
+    const [entrada] = await service.entradas(admin, id);
+    await service.setActive(admin, id, false);
+    await expect(service.removeEntrada(admin, id, entrada!.id)).rejects.toBeInstanceOf(DomainError);
+  });
+
+  it('editar não mexe no arrecadado', async () => {
+    const { service, admin } = setup();
+    const { id } = await service.create(admin, validVaquinhaInput);
+    await service.addEntrada(admin, id, { amountCents: 9_000, note: null });
+
+    const updated = await service.update(admin, id, { ...validVaquinhaInput, title: 'Castração de outubro' });
+    expect(updated.title).toBe('Castração de outubro');
+    expect((await service.getById(admin, id)).raisedCents).toBe(9_000);
+  });
+
+  it('convidado não vê vaquinhas', async () => {
+    const { service } = setup();
+    await expect(service.list(makeGuest())).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

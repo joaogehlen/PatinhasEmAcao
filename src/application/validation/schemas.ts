@@ -7,6 +7,7 @@ import {
   ANIMAL_TEMPERAMENTS,
 } from '@/domain/entities/Animal';
 import { USER_ROLES } from '@/domain/entities/User';
+import { MAX_VAQUINHA_PHOTOS } from '@/domain/entities/Vaquinha';
 
 /** Converte string vazia em null, útil para campos opcionais de formulário. */
 const optionalText = (max: number) =>
@@ -35,6 +36,9 @@ export const animalInputSchema = z.object({
   latitude: z.number().min(-90).max(90).nullable(),
   longitude: z.number().min(-180).max(180).nullable(),
 });
+
+/** Observação opcional da mudança de status, gravada no histórico. */
+export const statusNoteSchema = optionalText(300);
 
 const email = z.string().trim().toLowerCase().email('E-mail inválido.');
 const password = z
@@ -80,21 +84,31 @@ export const vaquinhaInputSchema = z.object({
   description: z
     .string()
     .trim()
-    .min(10, 'Explique a campanha (mínimo 10 caracteres).')
+    .min(10, 'Resuma a campanha (mínimo 10 caracteres).')
     .max(1000, 'Máximo de 1000 caracteres.'),
+  details: optionalText(5000),
+  coverUri: z.string().url('Capa inválida.').nullable(),
+  photoUris: z
+    .array(z.string().url('Foto inválida.'))
+    .max(MAX_VAQUINHA_PHOTOS, `No máximo ${MAX_VAQUINHA_PHOTOS} fotos.`),
   goalCents: z
     .number({ message: 'Informe a meta.' })
     .int('Valor inválido.')
     .positive('A meta precisa ser maior que zero.')
     .max(100_000_000, 'Meta acima do esperado.'),
-  raisedCents: z
-    .number({ message: 'Valor arrecadado inválido.' })
-    .int('Valor inválido.')
-    .min(0, 'O arrecadado não pode ser negativo.')
-    .max(100_000_000, 'Valor acima do esperado.'),
   pixKey: optionalText(140),
   animalId: z.string().uuid().nullable(),
   active: z.boolean(),
+});
+
+/** Lançamento de valor arrecadado. Correção se faz removendo e lançando de novo. */
+export const vaquinhaEntradaSchema = z.object({
+  amountCents: z
+    .number({ message: 'Informe o valor.' })
+    .int('Valor inválido.')
+    .positive('O valor precisa ser maior que zero.')
+    .max(100_000_000, 'Valor acima do esperado.'),
+  note: optionalText(200),
 });
 
 export type AnimalInputData = z.infer<typeof animalInputSchema>;

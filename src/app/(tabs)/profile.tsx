@@ -25,9 +25,9 @@ export default function ProfileScreen() {
   }
 
   /**
-   * O convidado não está logado, então "sair" não descreve o que acontece —
-   * e o que acontece é perder as denúncias, porque entrar em outra conta
-   * abandona a sessão anônima deste aparelho. O aviso precisa dizer isso.
+   * Entrar em outra conta abandona a sessão anônima deste aparelho, e com ela
+   * as denúncias. O aviso precisa dizer isso. A sessão só troca quando o login
+   * der certo: voltar da tela de entrada mantém o convidado como estava.
    */
   function confirmLeaveGuest() {
     Alert.alert(
@@ -35,7 +35,7 @@ export default function ProfileScreen() {
       'As denúncias que você registrou como convidado ficam só neste modo e você deixa de vê-las. Para levá-las junto, use "Criar conta".',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Entrar assim mesmo', style: 'destructive', onPress: () => void logout() },
+        { text: 'Entrar assim mesmo', style: 'destructive', onPress: () => router.push('/sign-in') },
       ],
     );
   }

@@ -2,8 +2,8 @@ import type { AnimalStatus } from '../entities/Animal';
 
 /**
  * Máquina de estados do resgate. Mantida no domínio para que qualquer
- * tela ou serviço aplique as mesmas regras (o fluxo de alteração de
- * status é implementado na Sprint 2, mas a regra já nasce testada).
+ * tela ou serviço aplique as mesmas regras. Espelho no banco:
+ * public.can_transition, em supabase/migrations/0001_init.sql.
  */
 const TRANSITIONS: Record<AnimalStatus, readonly AnimalStatus[]> = {
   denunciado: ['resgatado'],

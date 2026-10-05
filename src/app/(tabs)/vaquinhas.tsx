@@ -1,12 +1,12 @@
-import * as Clipboard from 'expo-clipboard';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { vaquinhaProgress, type Vaquinha } from '@/domain/entities/Vaquinha';
 import { Icon } from '@/presentation/components/Icon';
-import { AppText, EmptyState, FormError } from '@/presentation/components/ui';
+import { AppText, EmptyState, FormError, Pill } from '@/presentation/components/ui';
 import { formatMoney } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useAuth, useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
@@ -17,7 +17,7 @@ import { colors, radius, rules, shadows, spacing } from '@/presentation/theme';
  *
  * A ONG publica meta, chave PIX e quanto já entrou; o doador paga pelo banco
  * dele. Nenhum dinheiro passa pelo app, e a tela não finge o contrário — não
- * há botão "doar", há "copiar chave PIX".
+ * há botão "doar", há "copiar chave PIX", na página de cada campanha.
  */
 export default function VaquinhasScreen() {
   const { vaquinhas } = useServices();
@@ -52,7 +52,7 @@ export default function VaquinhasScreen() {
           <View style={styles.header}>
             <AppText variant="title">Vaquinhas</AppText>
             <AppText variant="body" color={colors.textMuted}>
-              A doação é feita pelo seu banco, com a chave PIX da ONG.
+              Toque numa campanha para ver os detalhes e copiar a chave PIX. A doação é feita pelo seu banco.
             </AppText>
             <FormError message={error} />
           </View>
@@ -60,8 +60,7 @@ export default function VaquinhasScreen() {
         renderItem={({ item }) => (
           <VaquinhaCard
             vaquinha={item}
-            canManage={can('vaquinha:manage')}
-            onEdit={() => router.push({ pathname: '/vaquinhas/[id]', params: { id: item.id } })}
+            onPress={() => router.push({ pathname: '/vaquinhas/[id]', params: { id: item.id } })}
           />
         )}
         ListEmptyComponent={
@@ -99,81 +98,58 @@ export default function VaquinhasScreen() {
   );
 }
 
-function VaquinhaCard({
-  vaquinha,
-  canManage,
-  onEdit,
-}: {
-  vaquinha: Vaquinha;
-  canManage: boolean;
-  onEdit: () => void;
-}) {
+function VaquinhaCard({ vaquinha, onPress }: { vaquinha: Vaquinha; onPress: () => void }) {
   const progress = vaquinhaProgress(vaquinha);
-
-  async function copyPix() {
-    if (!vaquinha.pixKey) return;
-    await Clipboard.setStringAsync(vaquinha.pixKey);
-    Alert.alert('Chave copiada', 'Cole no aplicativo do seu banco para fazer a doação.');
-  }
+  const percent = Math.floor(progress * 100);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <AppText variant="heading">{vaquinha.title}</AppText>
-          {!vaquinha.active && (
-            <AppText variant="caption" color={colors.textMuted}>
-              Campanha encerrada
-            </AppText>
-          )}
-        </View>
-        {canManage && (
-          <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel="Editar vaquinha" hitSlop={10}>
-            <Icon name="edit" size={20} color={colors.textMuted} />
-          </Pressable>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${vaquinha.title}, ${percent}% da meta`}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+    >
+      <View style={styles.cover}>
+        {vaquinha.coverUri ? (
+          <Image source={{ uri: vaquinha.coverUri }} contentFit="cover" transition={200} style={StyleSheet.absoluteFill} />
+        ) : (
+          <Icon name="donate" size={36} color={colors.textMuted} />
+        )}
+        {!vaquinha.active && (
+          <View style={styles.coverPill}>
+            <Pill icon="clock" label="Encerrada" background="rgba(14, 9, 7, 0.82)" color={colors.text} />
+          </View>
         )}
       </View>
 
-      <AppText variant="body" color={colors.textSoft}>
-        {vaquinha.description}
-      </AppText>
+      <View style={styles.cardBody}>
+        <AppText variant="heading" numberOfLines={2}>
+          {vaquinha.title}
+        </AppText>
+        <AppText variant="body" color={colors.textSoft} numberOfLines={2}>
+          {vaquinha.description}
+        </AppText>
 
-      <View style={styles.progressBlock}>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
-        <View style={styles.progressRow}>
-          <AppText variant="bodyStrong" color={colors.primary}>
-            {formatMoney(vaquinha.raisedCents)}
-          </AppText>
-          <AppText variant="caption" color={colors.textMuted}>
-            de {formatMoney(vaquinha.goalCents)}
-          </AppText>
-        </View>
-      </View>
-
-      {vaquinha.pixKey ? (
-        <Pressable
-          onPress={copyPix}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.pixRow, pressed && { opacity: 0.8 }]}
-        >
-          <Icon name="copy" size={18} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <AppText variant="label" color={colors.textMuted}>
-              Chave PIX
+        <View style={styles.progressBlock}>
+          <View style={styles.progressTrack}>
+            <View
+              style={[styles.progressFill, !vaquinha.active && styles.progressFillClosed, { width: `${progress * 100}%` }]}
+            />
+          </View>
+          <View style={styles.progressRow}>
+            <AppText variant="bodyStrong" color={colors.primary}>
+              {formatMoney(vaquinha.raisedCents)}
             </AppText>
-            <AppText variant="record" numberOfLines={1}>
-              {vaquinha.pixKey}
+            <AppText variant="caption" color={colors.textMuted} style={{ flex: 1 }}>
+              de {formatMoney(vaquinha.goalCents)}
+            </AppText>
+            <AppText variant="label" color={colors.textSoft}>
+              {percent}%
             </AppText>
           </View>
-        </Pressable>
-      ) : (
-        <AppText variant="caption" color={colors.textMuted}>
-          A ONG ainda não informou a chave PIX desta campanha.
-        </AppText>
-      )}
-    </View>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -187,24 +163,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: rules.hair,
     borderColor: colors.border,
-    padding: spacing.lg,
-    gap: spacing.md,
+    overflow: 'hidden',
   },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  cover: {
+    aspectRatio: 16 / 9,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverPill: { position: 'absolute', top: spacing.md, left: spacing.md },
+  cardBody: { padding: spacing.lg, gap: spacing.sm },
 
-  progressBlock: { gap: spacing.sm },
+  progressBlock: { gap: spacing.sm, marginTop: spacing.xs },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
+  // Encerrada: a barra para de chamar para a ação, mas o número continua legível.
+  progressFillClosed: { backgroundColor: colors.secondaryDark },
   progressRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
-
-  pixRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
 
   fab: {
     position: 'absolute',

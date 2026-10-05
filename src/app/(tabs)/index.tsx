@@ -7,6 +7,7 @@ import MapView, { Callout, Marker, PROVIDER_GOOGLE, type Region } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SIZE_LABELS, STATUS_LABELS, type Animal } from '@/domain/entities/Animal';
+import { isPendingReport } from '@/infrastructure/pendingReports';
 import { Icon } from '@/presentation/components/Icon';
 import { AppText } from '@/presentation/components/ui';
 import { formatAge } from '@/presentation/format';
@@ -183,7 +184,7 @@ function AnimalMarker({ animal, onPress }: { animal: Animal; onPress: () => void
             <View style={styles.calloutFooter}>
               <View style={[styles.calloutStatus, { backgroundColor: tone.background }]}>
                 <AppText variant="label" color={tone.text}>
-                  {STATUS_LABELS[animal.status]}
+                  {isPendingReport(animal.id) ? 'Pendente' : STATUS_LABELS[animal.status]}
                 </AppText>
               </View>
               <Icon name="chevronRight" size={16} color={colors.textMuted} />

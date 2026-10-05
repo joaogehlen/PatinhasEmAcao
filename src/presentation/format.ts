@@ -23,11 +23,18 @@ export function formatMoney(cents: number): string {
 /**
  * Texto digitado para centavos.
  *
- * Aceita "1.234,56", "1234,56" e "1234". Devolve null quando não dá para ler
- * um número — o schema transforma isso em erro de campo.
+ * Aceita "1.234,56", "1234,56", "1234" e também "50.5"/"50.50": o decimal-pad
+ * de muitos Androids só tem ponto, e ler esse ponto como milhar lançava o
+ * valor 100× maior. Sem vírgula, um único ponto seguido de 1–2 dígitos é
+ * decimal; nos demais casos o ponto é separador de milhar.
+ *
+ * Devolve null quando não dá para ler um número — o schema transforma isso em
+ * erro de campo.
  */
 export function parseMoney(text: string): number | null {
-  const digits = text.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+  const raw = text.replace(/[^\d,.-]/g, '');
+  const dotIsDecimal = !raw.includes(',') && /^-?\d*\.\d{1,2}$/.test(raw);
+  const digits = dotIsDecimal ? raw : raw.replace(/\./g, '').replace(',', '.');
   if (digits.trim() === '') return null;
   const value = Number(digits);
   if (!Number.isFinite(value)) return null;

@@ -15,8 +15,15 @@ import { isOffline, OFFLINE_MESSAGE, toUser, translateError } from '../supabase/
  * SecureSessionStore da Sprint 1 deixaram de existir por isso.
  */
 export class SupabaseAuthProvider implements AuthProvider {
+  /**
+   * Sem rede, o token vencido não renova e o perfil não carrega. Em vez de
+   * mandar para o login — o que impediria a denúncia offline — usamos o último
+   * perfil visto neste aparelho; a sessão continua guardada e renova quando a
+   * conexão voltar.
+   */
   async currentUser(): Promise<User | null> {
     const { data, error } = await supabase.auth.getSession();
+    if (error && isOffline(error.message)) return cachedUser();
     if (error || !data.session) return null;
     return this.loadProfile(data.session.user.id, isAnonymous(data.session.user));
   }
@@ -100,6 +107,7 @@ export class SupabaseAuthProvider implements AuthProvider {
   }
 
   async signOut(): Promise<void> {
+    globalThis.localStorage.removeItem(CACHED_USER_KEY);
     const { error } = await supabase.auth.signOut();
     if (error) throw translateAuthError(error);
   }
@@ -147,20 +155,26 @@ export class SupabaseAuthProvider implements AuthProvider {
    */
   private async loadProfile(id: string, isGuest = false): Promise<User> {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
-    if (error) throw new DomainError(`Não foi possível carregar seu perfil: ${error.message}`);
+    if (error) {
+      const cached = isOffline(error.message) ? cachedUser() : null;
+      if (cached?.id === id) return cached;
+      throw new DomainError(`Não foi possível carregar seu perfil: ${error.message}`);
+    }
     if (!data) {
       await supabase.auth.signOut();
       throw new AuthenticationError('Esta conta não está mais ativa. Fale com a ONG.');
     }
-    return toUser(data, isGuest);
+    const user = toUser(data, isGuest);
+    globalThis.localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+    return user;
   }
 
   /**
-   * Criar e excluir contas exige a service_role key, que jamais pode estar no
+   * Criar conta exige a service_role key, que jamais pode estar no
    * app. A Edge Function admin-users faz isso no servidor e revalida que quem
    * chamou é administrador — não basta o app ter checado.
    */
-  private async invokeAdmin<T>(action: 'create' | 'delete', payload: unknown): Promise<T> {
+  private async invokeAdmin<T>(action: 'create', payload: unknown): Promise<T> {
     const { data, error } = await supabase.functions.invoke<T>('admin-users', {
       body: { action, payload },
     });
@@ -173,6 +187,16 @@ export class SupabaseAuthProvider implements AuthProvider {
     }
     if (!data) throw new DomainError('O servidor não respondeu à operação.');
     return data;
+  }
+}
+
+const CACHED_USER_KEY = 'patinhas.lastUser';
+
+function cachedUser(): User | null {
+  try {
+    return JSON.parse(globalThis.localStorage.getItem(CACHED_USER_KEY) ?? 'null') as User | null;
+  } catch {
+    return null;
   }
 }
 

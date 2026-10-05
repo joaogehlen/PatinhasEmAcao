@@ -15,6 +15,7 @@ import {
   type AnimalSpecies,
   type AnimalStatus,
 } from '@/domain/entities/Animal';
+import { isPendingReport } from '@/infrastructure/pendingReports';
 import { Icon } from '@/presentation/components/Icon';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
 import { AppText, Avatar, ChipSelect, EmptyState, FormError, TextField } from '@/presentation/components/ui';
@@ -226,11 +227,12 @@ export default function HomeScreen() {
 
 function AnimalCard({ animal, width, onPress }: { animal: Animal; width: number; onPress: () => void }) {
   const tone = statusStyles[animal.status];
+  const pending = isPendingReport(animal.id);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${animal.name}, ${STATUS_LABELS[animal.status]}`}
+      accessibilityLabel={`${animal.name}, ${pending ? 'pendente de envio' : STATUS_LABELS[animal.status]}`}
       style={({ pressed }) => [styles.card, { width }, pressed && styles.cardPressed]}
     >
       <View style={[styles.cardImage, { height: width * 1.05 }]}>
@@ -242,7 +244,7 @@ function AnimalCard({ animal, width, onPress }: { animal: Animal; width: number;
           </View>
         )}
         <View style={styles.cardBadge}>
-          <StatusBadge status={animal.status} />
+          <StatusBadge status={animal.status} pending={pending} />
         </View>
       </View>
       <View style={styles.cardBody}>

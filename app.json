@@ -41,7 +41,8 @@
           "locationAlwaysAndWhenInUsePermission": "O Patinhas em Ação usa sua localização para marcar no mapa onde o animal foi visto.",
           "locationWhenInUsePermission": "O Patinhas em Ação usa sua localização para marcar no mapa onde o animal foi visto."
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true

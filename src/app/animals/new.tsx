@@ -15,6 +15,7 @@ export default function NewAnimalScreen() {
       showInitialStatus={can('animal:changeStatus')}
       onSubmit={async ({ input, initialStatus }) => {
         const animal = await animals.create(user, input, initialStatus);
+        // Sem internet a denúncia fica na fila, e o detalhe a mostra como pendente.
         router.replace(`/animals/${animal.id}`);
       }}
     />

@@ -8,7 +8,7 @@ import { Icon } from '@/presentation/components/Icon';
 import { AppText, Button, FormError, PasswordField, TextField } from '@/presentation/components/ui';
 import { describeError } from '@/presentation/format';
 import { useAuth } from '@/presentation/providers/AppProviders';
-import { colors, radius, rules, spacing } from '@/presentation/theme';
+import { colors, spacing } from '@/presentation/theme';
 
 /**
  * Entrada do app.
@@ -18,7 +18,7 @@ import { colors, radius, rules, spacing } from '@/presentation/theme';
  * Sem contas de demonstração: quem apresenta digita as credenciais.
  */
 export default function SignInScreen() {
-  const { login, continueAsGuest } = useAuth();
+  const { user, login, continueAsGuest } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -30,6 +30,8 @@ export default function SignInScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   async function handleGuest() {
+    // Veio do perfil do convidado: a sessão anônima continua de pé, é só voltar.
+    if (user?.isGuest) return router.back();
     setEntering(true);
     setError(null);
     try {
@@ -100,21 +102,17 @@ export default function SignInScreen() {
 
             <Button title="Entrar" onPress={handleSubmit} loading={submitting} />
 
-            {/*
-              O caminho sem conta fica aqui, no mesmo peso visual de uma ação
-              secundária: quem está na rua com um animal ferido não deveria
-              precisar criar cadastro antes de avisar.
-            */}
             <Pressable
               onPress={handleGuest}
               accessibilityRole="button"
               disabled={entering}
-              style={({ pressed }) => [styles.guest, pressed && { opacity: 0.75 }]}
+              hitSlop={10}
+              style={({ pressed }) => [styles.guest, pressed && { opacity: 0.6 }]}
             >
-              <Icon name="megaphone" size={18} color={colors.text} />
-              <AppText variant="bodyStrong">
-                {entering ? 'Entrando…' : 'Só quero avisar sobre um animal'}
+              <AppText variant="caption" color={colors.textMuted}>
+                {entering ? 'Entrando…' : 'Continuar como convidado'}
               </AppText>
+              <Icon name="chevronRight" size={14} color={colors.textMuted} />
             </Pressable>
           </View>
         </View>
@@ -144,13 +142,10 @@ const styles = StyleSheet.create({
   guest: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: 52,
-    marginTop: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: rules.hair,
-    borderColor: colors.borderStrong,
+    alignSelf: 'center',
+    gap: 2,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.xs,
   },
 
   footer: {

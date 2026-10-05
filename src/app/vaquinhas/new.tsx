@@ -12,8 +12,9 @@ export default function NewVaquinhaScreen() {
     <VaquinhaForm
       submitLabel="Criar vaquinha"
       onSubmit={async (input) => {
-        await vaquinhas.create(actor, input);
-        router.back();
+        const created = await vaquinhas.create(actor, input);
+        // Abre a página da campanha, onde se lançam os primeiros valores.
+        router.replace({ pathname: '/vaquinhas/[id]', params: { id: created.id } });
       }}
     />
   );

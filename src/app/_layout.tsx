@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { startPendingReportsSync } from '@/infrastructure/pendingReports';
 import { AppProviders, useAuth } from '@/presentation/providers/AppProviders';
 import { colors, fonts } from '@/presentation/theme';
 
@@ -43,6 +44,9 @@ function RootNavigator() {
     if (!isLoading) void SplashScreen.hideAsync();
   }, [isLoading]);
 
+  // Envia denúncias feitas sem internet. Espera a sessão, que o insert exige.
+  useEffect(() => (isLoading ? undefined : startPendingReportsSync()), [isLoading]);
+
   if (isLoading) return null;
 
   const isLoggedIn = user !== null;
@@ -50,7 +54,7 @@ function RootNavigator() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerTintColor: colors.text,
@@ -88,9 +92,16 @@ function RootNavigator() {
             <Stack.Screen name="profile/password" options={{ title: 'Alterar senha' }} />
           </Stack.Protected>
 
+          <Stack.Protected guard={can('vaquinha:view')}>
+            <Stack.Screen
+              name="vaquinhas/[id]"
+              options={{ title: '', headerTransparent: true, headerTintColor: colors.white }}
+            />
+          </Stack.Protected>
+
           <Stack.Protected guard={can('vaquinha:manage')}>
             <Stack.Screen name="vaquinhas/new" options={{ title: 'Nova vaquinha', presentation: 'modal' }} />
-            <Stack.Screen name="vaquinhas/[id]" options={{ title: 'Editar vaquinha' }} />
+            <Stack.Screen name="vaquinhas/edit/[id]" options={{ title: 'Editar vaquinha' }} />
           </Stack.Protected>
 
           <Stack.Protected guard={can('user:manage')}>

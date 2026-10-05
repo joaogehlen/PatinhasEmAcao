@@ -1,8 +1,8 @@
 import { randomUUID } from 'expo-crypto';
-import { File } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
-import { DomainError } from '@/domain/errors';
+import { DomainError, OfflineError } from '@/domain/errors';
 
 import { ANIMAL_PHOTOS_BUCKET, supabase } from './supabase/client';
 import { isOffline } from './supabase/mappers';
@@ -18,9 +18,10 @@ import { isOffline } from './supabase/mappers';
  * O bucket é público para leitura — a foto de um animal para adoção é conteúdo
  * de divulgação, e URL assinada obrigaria a renovar link a cada exibição.
  */
-export async function persistPhoto(sourceUri: string): Promise<string> {
+export async function persistPhoto(sourceUri: string, folder?: string): Promise<string> {
   const { data, contentType, extension } = await readSource(sourceUri);
-  const path = `${randomUUID()}.${extension}`;
+  // As fotos das vaquinhas dividem o bucket com as dos animais, em pasta própria.
+  const path = `${folder ? `${folder}/` : ''}${randomUUID()}.${extension}`;
 
   const { error } = await supabase.storage.from(ANIMAL_PHOTOS_BUCKET).upload(path, data, {
     contentType,
@@ -28,14 +29,40 @@ export async function persistPhoto(sourceUri: string): Promise<string> {
   });
 
   if (error) {
-    throw new DomainError(
-      isOffline(error.message)
-        ? 'Sem conexão para enviar a foto. Verifique a internet e tente de novo.'
-        : `Não foi possível enviar a foto: ${error.message}`,
-    );
+    if (isOffline(error.message)) {
+      throw new OfflineError('Sem conexão para enviar a foto. Verifique a internet e tente de novo.');
+    }
+    throw new DomainError(`Não foi possível enviar a foto: ${error.message}`);
   }
 
   return supabase.storage.from(ANIMAL_PHOTOS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Copia a foto para os documentos do app, para ser enviada depois.
+ *
+ * É o caminho da denúncia offline: o picker entrega um arquivo no cache, que o
+ * sistema pode apagar antes de a internet voltar.
+ */
+export async function keepLocalPhoto(sourceUri: string): Promise<string> {
+  const dir = new Directory(Paths.document, 'pending-photos');
+  dir.create({ idempotent: true, intermediates: true });
+  const source = new File(sourceUri);
+  const target = new File(dir, `${randomUUID()}${source.extension || '.jpg'}`);
+  await source.copy(target);
+  return target.uri;
+}
+
+export function isLocalPhoto(uri: string): boolean {
+  return uri.startsWith('file://');
+}
+
+export function deleteLocalPhoto(uri: string): void {
+  try {
+    new File(uri).delete();
+  } catch {
+    // Já apagada: nada a fazer.
+  }
 }
 
 interface PhotoSource {

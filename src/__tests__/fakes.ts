@@ -1,9 +1,11 @@
 import type { AuthProvider, Clock, CreateUserInput, IdGenerator, SignUpInput } from '@/application/ports';
-import type { Animal, AnimalStatusChange } from '@/domain/entities/Animal';
+import type { Animal, AnimalStatus, AnimalStatusChange } from '@/domain/entities/Animal';
+import type { Vaquinha, VaquinhaEntrada } from '@/domain/entities/Vaquinha';
 import type { User, UserRole } from '@/domain/entities/User';
 import { AuthenticationError, ConflictError } from '@/domain/errors';
 import type { AnimalFilters, AnimalRepository } from '@/domain/repositories/AnimalRepository';
 import type { UserFilters, UserRepository } from '@/domain/repositories/UserRepository';
+import type { VaquinhaFilters, VaquinhaRepository } from '@/domain/repositories/VaquinhaRepository';
 
 /** Implementações em memória para testar os serviços sem Supabase/Expo. */
 export class InMemoryUserRepository implements UserRepository {
@@ -162,6 +164,20 @@ export class InMemoryAnimalRepository implements AnimalRepository {
   async update(animal: Animal) {
     this.rows.set(animal.id, animal);
   }
+  /** Faz o papel do trigger: troca o status e grava a linha do histórico. */
+  async changeStatus(id: string, status: AnimalStatus, note: string | null) {
+    const current = this.rows.get(id)!;
+    this.rows.set(id, { ...current, status });
+    this.history.push({
+      id: `h-${this.history.length + 1}`,
+      animalId: id,
+      fromStatus: current.status,
+      toStatus: status,
+      note,
+      changedBy: null,
+      changedAt: fixedClock.nowIso(),
+    });
+  }
   async delete(id: string) {
     this.rows.delete(id);
   }
@@ -169,6 +185,56 @@ export class InMemoryAnimalRepository implements AnimalRepository {
     return this.history.filter((h) => h.animalId === animalId);
   }
 }
+
+/** O arrecadado é derivado das entradas, como faz o trigger no banco. */
+export class InMemoryVaquinhaRepository implements VaquinhaRepository {
+  readonly rows = new Map<string, Vaquinha>();
+  readonly entradaRows: VaquinhaEntrada[] = [];
+
+  async list(filters: VaquinhaFilters = {}) {
+    return [...this.rows.keys()]
+      .map((id) => this.withRaised(id))
+      .filter((v) => (!filters.activeOnly || v.active) && (!filters.animalId || v.animalId === filters.animalId));
+  }
+  async findById(id: string) {
+    return this.rows.has(id) ? this.withRaised(id) : null;
+  }
+  async create(vaquinha: Vaquinha) {
+    this.rows.set(vaquinha.id, vaquinha);
+  }
+  async update(vaquinha: Vaquinha) {
+    this.rows.set(vaquinha.id, vaquinha);
+  }
+  async delete(id: string) {
+    this.rows.delete(id);
+  }
+  async listEntradas(vaquinhaId: string) {
+    return this.entradaRows.filter((e) => e.vaquinhaId === vaquinhaId).reverse();
+  }
+  async addEntrada(entrada: VaquinhaEntrada) {
+    this.entradaRows.push(entrada);
+  }
+  async deleteEntrada(id: string) {
+    const index = this.entradaRows.findIndex((e) => e.id === id);
+    if (index >= 0) this.entradaRows.splice(index, 1);
+  }
+  private withRaised(id: string): Vaquinha {
+    const raisedCents = this.entradaRows.filter((e) => e.vaquinhaId === id).reduce((sum, e) => sum + e.amountCents, 0);
+    return { ...this.rows.get(id)!, raisedCents };
+  }
+}
+
+export const validVaquinhaInput = {
+  title: 'Castração coletiva',
+  description: 'Mutirão de castração de 20 gatos da praça.',
+  details: '',
+  coverUri: 'https://exemplo.org/capa.jpg',
+  photoUris: ['https://exemplo.org/1.jpg'],
+  goalCents: 150_000,
+  pixKey: 'pix@patinhas.org',
+  animalId: null,
+  active: true,
+};
 
 export function sequentialIds(): IdGenerator {
   let counter = 0;

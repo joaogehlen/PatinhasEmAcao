@@ -132,6 +132,8 @@ export function IconButton({ icon, onPress, accessibilityLabel, variant = 'soft'
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      // Círculo menor que 44pt (ex.: remover foto da grade) mantém o alvo de toque.
+      hitSlop={Math.max(0, (44 - size) / 2)}
       style={({ pressed }) => [
         styles.iconButton,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: background },

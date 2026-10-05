@@ -1,13 +1,15 @@
 import type { Animal, AnimalStatusChange } from '@/domain/entities/Animal';
 import type { User } from '@/domain/entities/User';
-import type { Vaquinha } from '@/domain/entities/Vaquinha';
-import { ConflictError, DomainError, ForbiddenError, NotFoundError } from '@/domain/errors';
+import type { Vaquinha, VaquinhaEntrada } from '@/domain/entities/Vaquinha';
+import { ConflictError, DomainError, ForbiddenError, NotFoundError, OfflineError } from '@/domain/errors';
 
 import type {
   AnimalInsert,
   AnimalRow,
   AnimalStatusHistoryRow,
   ProfileRow,
+  VaquinhaEntradaInsert,
+  VaquinhaEntradaRow,
   VaquinhaInsert,
   VaquinhaRow,
 } from './types';
@@ -81,8 +83,12 @@ export function toVaquinha(row: VaquinhaRow): Vaquinha {
     id: row.id,
     title: row.title,
     description: row.description,
+    details: row.details,
+    coverUri: row.cover_uri,
+    photoUris: row.photo_uris ?? [],
     goalCents: row.goal_cents,
-    raisedCents: row.raised_cents,
+    // bigint no banco; chega como número pelo PostgREST.
+    raisedCents: Number(row.raised_cents),
     pixKey: row.pix_key,
     animalId: row.animal_id,
     active: row.active,
@@ -97,12 +103,35 @@ export function fromVaquinha(vaquinha: Vaquinha): VaquinhaInsert {
     id: vaquinha.id,
     title: vaquinha.title,
     description: vaquinha.description,
+    details: vaquinha.details,
+    cover_uri: vaquinha.coverUri,
+    photo_uris: vaquinha.photoUris,
     goal_cents: vaquinha.goalCents,
-    raised_cents: vaquinha.raisedCents,
     pix_key: vaquinha.pixKey,
     animal_id: vaquinha.animalId,
     active: vaquinha.active,
     created_by: vaquinha.createdBy,
+  };
+}
+
+export function toVaquinhaEntrada(row: VaquinhaEntradaRow): VaquinhaEntrada {
+  return {
+    id: row.id,
+    vaquinhaId: row.vaquinha_id,
+    amountCents: row.amount_cents,
+    note: row.note,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+  };
+}
+
+export function fromVaquinhaEntrada(entrada: VaquinhaEntrada): VaquinhaEntradaInsert {
+  return {
+    id: entrada.id,
+    vaquinha_id: entrada.vaquinhaId,
+    amount_cents: entrada.amountCents,
+    note: entrada.note,
+    created_by: entrada.createdBy,
   };
 }
 
@@ -146,7 +175,7 @@ export function translateError(error: { code?: string; message: string } | null)
   // P0001 é o código de `raise exception` em PL/pgSQL: são as nossas guardas.
   if (error.code === 'P0001') throw new DomainError(error.message);
 
-  if (isOffline(error.message)) throw new DomainError(OFFLINE_MESSAGE);
+  if (isOffline(error.message)) throw new OfflineError(OFFLINE_MESSAGE);
 
   throw new DomainError(error.message);
 }

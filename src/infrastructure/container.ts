@@ -5,7 +5,7 @@ import { VaquinhaService } from '@/application/services/VaquinhaService';
 
 import { systemClock, uuidGenerator } from './adapters';
 import { SupabaseAuthProvider } from './auth/SupabaseAuthProvider';
-import { SupabaseAnimalRepository } from './repositories/SupabaseAnimalRepository';
+import { OfflineFirstAnimalRepository } from './pendingReports';
 import { SupabaseUserRepository } from './repositories/SupabaseUserRepository';
 import { SupabaseVaquinhaRepository } from './repositories/SupabaseVaquinhaRepository';
 
@@ -27,7 +27,7 @@ export interface Services {
 export function createServices(): Services {
   const authProvider = new SupabaseAuthProvider();
   const userRepository = new SupabaseUserRepository();
-  const animalRepository = new SupabaseAnimalRepository();
+  const animalRepository = new OfflineFirstAnimalRepository();
 
   return {
     auth: new AuthService(authProvider),

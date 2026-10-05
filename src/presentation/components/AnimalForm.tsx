@@ -113,7 +113,8 @@ export function AnimalForm({ initial, submitLabel, showInitialStatus = false, on
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <FormError message={error} />
-        <PhotoPicker uri={photoUri} onChange={setPhotoUri} />
+        {/* Denúncia nova guarda a foto no aparelho e sobe junto com ela: funciona sem internet. */}
+        <PhotoPicker uri={photoUri} onChange={setPhotoUri} deferUpload={!initial} />
 
         <Card>
           <SectionHeader title="Onde o animal está" icon="location" />

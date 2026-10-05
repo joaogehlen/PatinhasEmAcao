@@ -39,9 +39,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Sem sessão salva, o app abre direto no mapa como convidado; o login fica
+  // a um toque, no perfil. Falhou (offline, por ex.)? Cai na tela de entrada.
   useEffect(() => {
     auth
       .restoreSession()
+      .then((restored) => restored ?? auth.continueAsGuest())
       .then(setUser)
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
@@ -59,7 +62,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const continueAsGuest = useCallback(async () => setUser(await auth.continueAsGuest()), [auth]);
   const logout = useCallback(async () => {
     await auth.logout();
-    setUser(null);
+    // Sair volta para o mapa como convidado, igual a quem abre o app pela primeira vez.
+    setUser(await auth.continueAsGuest().catch(() => null));
   }, [auth]);
   const can = useCallback((permission: Permission) => hasPermission(user, permission), [user]);
 
