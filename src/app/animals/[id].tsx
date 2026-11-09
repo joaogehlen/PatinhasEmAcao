@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -36,6 +36,9 @@ export default function AnimalDetailScreen() {
   const { user, can } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  // A foto é o animal: quase metade da tela, sem passar de um retrato no tablet.
+  const heroHeight = Math.round(Math.min(window.height * 0.46, window.width * 1.1));
 
   const canSeeVaquinhas = can('vaquinha:view');
   const query = useCallback(async () => {
@@ -130,7 +133,7 @@ export default function AnimalDetailScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { height: heroHeight }]}>
           {animal.photoUri ? (
             <Image source={{ uri: animal.photoUri }} contentFit="cover" transition={300} style={StyleSheet.absoluteFill} />
           ) : (
@@ -387,7 +390,7 @@ function InfoTile({ icon, label, value }: { icon: IconName; label: string; value
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hero: { height: 380, backgroundColor: colors.primarySoft },
+  hero: { backgroundColor: colors.primarySoft },
   heroPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroShade: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
   sheet: {

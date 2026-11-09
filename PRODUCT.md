@@ -10,7 +10,7 @@ adaptive
 
 **Morador de Arvorezinha/RS** — adulto acostumado com apps (usa WhatsApp e Instagram sem dificuldade). Abre o app na rua, no celular, ao se deparar com um animal abandonado ou ferido. Está com pressa, muitas vezes com uma mão só, e quer registrar a situação e seguir em frente. Também é quem procura um animal para adotar.
 
-**Voluntário da ONG** — atende as denúncias, faz o resgate e acompanha o tratamento. Atualiza o estado do animal ao longo da jornada e mantém o catálogo de adoção verdadeiro.
+**Equipe da ONG (perfil administrador)** — atende as denúncias, faz o resgate e acompanha o tratamento. Atualiza o estado do animal ao longo da jornada e mantém o catálogo de adoção verdadeiro. O perfil de voluntário deixou de existir em 14/09/2026; tudo o que era dele passou para o administrador.
 
 **Administrador da ONG** — gerencia o catálogo, os usuários da equipe e as doações. É o único que remove registros e altera perfis.
 
@@ -25,7 +25,7 @@ O app acompanha o animal individual do primeiro avistamento até a adoção, em 
 ## Operating Context
 
 - **A denúncia acontece na rua**, no momento do avistamento: foto tirada na hora, descrição curta, localização do ponto. Conexão pode estar ruim ou ausente.
-- **O trabalho da ONG acontece depois**, em outro lugar e outro dispositivo: o voluntário lê a denúncia, vai ao local, resgata e volta para atualizar o estado.
+- **O trabalho da ONG acontece depois**, em outro lugar e outro dispositivo: a equipe lê a denúncia, vai ao local, resgata e volta para atualizar o estado.
 - **A adoção é navegação de catálogo**, sem urgência: o visitante folheia, compara e se interessa.
 - Esses três momentos usam o mesmo app, mas não têm a mesma pressa nem o mesmo estado emocional.
 
@@ -33,30 +33,30 @@ O app acompanha o animal individual do primeiro avistamento até a adoção, em 
 
 ## Capabilities and Constraints
 
-**Já existe (Sprints 1 e 2):** cadastro e login com sessão persistente; dois perfis (morador, admin) e o modo convidado, que denuncia sem conta; CRUD de animais com foto de câmera ou galeria; catálogo com busca e filtros; CRUD de usuários para admin com exclusão lógica; GPS na denúncia e mapa das ocorrências como tela inicial; alteração de status com observação e timeline gravada no banco; denúncia sem conexão, enviada quando a internet volta; vaquinhas com capa, detalhes, galeria, lançamentos de arrecadação e chave PIX copiável.
+**Já existe (Sprints 1, 2 e 3):** cadastro e login com sessão persistente; dois perfis (morador, admin) e o modo convidado, que denuncia sem conta; CRUD de animais com foto de câmera ou galeria; catálogo com busca e filtros; CRUD de usuários para admin com exclusão lógica; GPS na denúncia e mapa das ocorrências como tela inicial; alteração de status com observação e timeline gravada no banco; denúncia sem conexão, enviada quando a internet volta; vaquinhas com capa, detalhes, galeria, lançamentos de arrecadação e chave PIX copiável; mural de notícias da ONG; formulário de adoção com fila de avaliação; foto de perfil; central de avisos dentro do app.
 
-**Planejado (Sprint 3):** mural de notícias da ONG, formulário de adoção, foto de perfil e central de avisos dentro do app. Lares temporários saíram do escopo. **Sprint final:** prestação de contas, fila de casos abertos, pós-adoção e testes de usabilidade.
+Lares temporários saíram do escopo. **Sprint final:** prestação de contas, fila de casos abertos, pós-adoção e testes de usabilidade.
 
 **Restrições técnicas:**
-- Expo SDK 57 / React Native, distribuído via Expo Go — sem código nativo customizado.
-- **Backend no Supabase** (Postgres + Auth + Storage). Os dados são compartilhados entre aparelhos: a denúncia do morador aparece para o voluntário.
+- Expo SDK 58 / React Native 0.88, distribuído via Expo Go — sem código nativo customizado.
+- **Backend no Supabase** (Postgres + Auth + Storage). Os dados são compartilhados entre aparelhos: a denúncia do morador aparece para a equipe.
 - **Só a denúncia funciona sem internet.** Ela fica numa fila no aparelho e é enviada quando a conexão volta (PB25), marcada como "Pendente" até lá. O resto do app — catálogo atualizado, vaquinhas, gestão — exige conexão.
 - As permissões existem em dois lugares: `src/domain/rules/permissions.ts` (esconde botão) e as policies de RLS no Postgres (regra que vale). Divergência entre as duas é bug silencioso.
 - Autenticação pelo Supabase Auth; nenhuma senha é processada ou guardada pelo app.
 - Aparelho-alvo é um celular modesto — desempenho e peso de imagem importam.
 - Idioma único: português do Brasil.
-- Sem notificações push.
+- Sem notificações push (o Expo Go não as entrega); os avisos ficam dentro do app.
 - **O plano gratuito do Supabase pausa o projeto após 7 dias sem atividade.** Com a demo para a banca, isso é risco real de apresentação.
 
-**Vocabulário do produto:** *denúncia* (o registro feito pelo morador), *resgate*, *jornada*/*timeline* (a sequência de status), *morador* / *voluntário* / *administrador* (os três perfis).
+**Vocabulário do produto:** *denúncia* (o registro feito pelo morador), *resgate*, *jornada*/*timeline* (a sequência de status), *morador* / *administrador* (os perfis com conta) e *convidado* (sem conta).
 
-**Explicitamente indefinido:** se moradores poderão acompanhar o desfecho da própria denúncia; se haverá notificação quando um animal muda de status; como a candidatura à adoção será avaliada pela ONG.
+**Decidido na Sprint 3:** quem denunciou recebe aviso dentro do app quando a situação do animal muda; o pedido de adoção segue Enviado → Em análise → Aprovado/Recusado e é avaliado pela equipe numa fila.
 
 ## Brand Commitments
 
 A ONG Patinhas em Ação é real e atua em Arvorezinha/RS. O nome é fato e não muda.
 
-Ela **não possui identidade visual definida** — não há logo, paleta ou tipografia oficiais. O laranja/turquesa com Nunito hoje no código é escolha da equipe, não compromisso de marca, e está livre para ser substituído. Propor essa identidade faz parte do trabalho.
+Ela **não possui identidade visual definida** — não há logo, paleta ou tipografia oficiais. A identidade no código é proposta da equipe: fundo escuro de café, laranja como cor de ação e bege como contrapeso, tipografia Archivo, e o Caramelo — cachorro caramelo de orelhas caídas — como mascote do login.
 
 ## Evidence on Hand
 
@@ -74,7 +74,7 @@ Não inventar depoimentos, números de animais resgatados, parcerias, prestaçã
 1. **A denúncia é o momento crítico.** Ela acontece na rua, com pressa e com uma mão. Todo atrito nela custa um animal não reportado — ela tem prioridade sobre qualquer outra tela do app.
 2. **Cada animal é um indivíduo, não uma linha de lista.** O registro carrega nome, jeito e história. A interface deve fazer o usuário ver um bicho, não um item de inventário.
 3. **O estado do animal é sempre visível e sempre verdadeiro.** A jornada é o coração do produto; nunca mostrar como disponível quem não está, nem esconder onde o animal se encontra agora.
-4. **Perfil define o que se vê, não só o que se pode clicar.** Morador, voluntário e administrador têm trabalhos diferentes; cada um vê a interface do seu trabalho, sem botões mortos nem funções que não lhe pertencem.
+4. **Perfil define o que se vê, não só o que se pode clicar.** Convidado, morador e administrador têm trabalhos diferentes; cada um vê a interface do seu trabalho, sem botões mortos nem funções que não lhe pertencem.
 5. **Não fabricar credibilidade.** Sem materiais reais da ONG, o app não simula prova social. Honestidade sobre o que ainda não existe é parte da confiança.
 
 ## Accessibility & Inclusion

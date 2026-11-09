@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { STATUS_LABELS } from '@/domain/entities/Animal';
@@ -25,6 +25,8 @@ export default function NoticiaDetailScreen() {
   const actor = useCurrentUser();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const heroHeight = Math.round(Math.min(window.height * 0.38, window.width * 0.75));
   const canManage = can('noticia:manage');
 
   const query = useCallback(async () => {
@@ -71,7 +73,7 @@ export default function NoticiaDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + (canManage ? 110 : 32) }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { height: heroHeight }]}>
           {noticia.coverUri ? (
             <Image source={{ uri: noticia.coverUri }} contentFit="cover" transition={300} style={StyleSheet.absoluteFill} />
           ) : (
@@ -196,7 +198,7 @@ export default function NoticiaDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hero: { height: 280, backgroundColor: colors.primarySoft },
+  hero: { backgroundColor: colors.primarySoft },
   heroPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroShade: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
   sheet: {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'expo-crypto';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -6,6 +7,27 @@ import { DomainError, OfflineError } from '@/domain/errors';
 
 import { ANIMAL_PHOTOS_BUCKET, supabase } from './supabase/client';
 import { isOffline } from './supabase/mappers';
+
+/**
+ * Reduz a foto antes de guardar ou enviar: lado maior em `maxSide` px, JPEG 75%.
+ *
+ * A câmera entrega 12 MP ou mais; isso pesa no upload pelo 4G, no plano
+ * gratuito do Storage e na memória do celular modesto que mostra o catálogo.
+ * Falhou o processamento? Segue com a original — a denúncia não pode parar.
+ */
+export async function shrinkPhoto(uri: string, size: { width: number; height: number }, maxSide = 1600): Promise<string> {
+  try {
+    const context = ImageManipulator.manipulate(uri);
+    if (Math.max(size.width, size.height) > maxSide) {
+      context.resize(size.width >= size.height ? { width: maxSide } : { height: maxSide });
+    }
+    const image = await context.renderAsync();
+    const result = await image.saveAsync({ compress: 0.75, format: SaveFormat.JPEG });
+    return result.uri;
+  } catch {
+    return uri;
+  }
+}
 
 /**
  * Envia a foto para o Storage do Supabase e devolve a URL pública.

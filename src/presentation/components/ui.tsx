@@ -424,7 +424,12 @@ interface ListItemProps {
 export function ListItem({ icon, title, subtitle, onPress, danger = false }: ListItemProps) {
   const tint = danger ? colors.danger : colors.primary;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.listItem, pressed && { backgroundColor: colors.surfaceAlt }]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint={subtitle}
+      style={({ pressed }) => [styles.listItem, pressed && { backgroundColor: colors.surfaceAlt }]}
+    >
       <View style={[styles.listIcon, { backgroundColor: danger ? colors.dangerSoft : colors.primarySoft }]}>
         <Icon name={icon} size={18} color={tint} />
       </View>

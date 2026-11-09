@@ -57,7 +57,7 @@ export default function NewAdocaoScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <AppText variant="body" color={colors.textSoft}>
           A ONG avalia cada pedido e entra em contato. Você acompanha a situação em Perfil › Meus pedidos de adoção.

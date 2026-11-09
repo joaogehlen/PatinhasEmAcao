@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/presentation/components/Icon';
 import { useAuth } from '@/presentation/providers/AppProviders';
@@ -16,6 +17,7 @@ import { colors, fonts, rules } from '@/presentation/theme';
  */
 export default function TabsLayout() {
   const { can, user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // Trocar de conta (ou sair do modo convidado) remonta as abas e volta ao Mapa.
   return (
@@ -30,8 +32,11 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopWidth: rules.hair,
           borderTopColor: colors.border,
-          height: 64,
+          // Altura fixa sem a área segura espremia os rótulos sobre o
+          // indicador de início do iPhone e a barra de gestos do Android.
+          height: 58 + insets.bottom,
           paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 6),
         },
         sceneStyle: { backgroundColor: colors.background },
       }}

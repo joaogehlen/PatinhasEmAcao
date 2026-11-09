@@ -9,7 +9,7 @@ import { AvisoBell } from '@/presentation/components/AvisoBell';
 import { AppText, Avatar, Button, Card, ListItem, Pill } from '@/presentation/components/ui';
 import { formatDate } from '@/presentation/format';
 import { useAuth, useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
-import { colors, radius, roleStyles, rules, spacing } from '@/presentation/theme';
+import { colors, layout, radius, roleStyles, rules, spacing } from '@/presentation/theme';
 
 const SOBRE =
   'Conectamos a comunidade de Arvorezinha/RS à ONG Patinhas em Ação para que nenhum animal em risco passe despercebido: da denúncia ao resgate, do tratamento à adoção.';
@@ -112,7 +112,7 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.xxl }]}>
-        <View style={[styles.bell, { top: insets.top + spacing.md }]}>
+        <View style={[styles.bell, { top: insets.top + spacing.lg }]}>
           <AvisoBell />
         </View>
         <Avatar name={user.name} uri={user.avatarUrl} size={72} />
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   bell: { position: 'absolute', right: spacing.xl },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   center: { textAlign: 'center' },
-  body: { paddingHorizontal: spacing.xl, gap: spacing.lg },
+  body: { paddingHorizontal: spacing.xl, gap: spacing.lg, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   menu: { padding: 0, paddingVertical: spacing.xs, borderRadius: radius.lg },
   separator: { height: rules.hair, backgroundColor: colors.border, marginLeft: 70 },
 

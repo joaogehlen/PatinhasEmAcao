@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { keepLocalPhoto, persistPhoto } from '@/infrastructure/photoStorage';
+import { keepLocalPhoto, persistPhoto, shrinkPhoto } from '@/infrastructure/photoStorage';
 
 import { describeError } from '../format';
 import { colors, radius, rules, spacing } from '../theme';
@@ -23,7 +23,7 @@ const canUseCamera = Platform.OS !== 'web';
  */
 async function pickAndUpload(
   source: Source,
-  options: { multiple?: number; aspect?: [number, number]; folder?: string; defer?: boolean; local?: boolean },
+  options: { multiple?: number; aspect?: [number, number]; folder?: string; defer?: boolean; maxSide?: number },
 ): Promise<string[]> {
   const permission =
     source === 'camera'
@@ -61,15 +61,9 @@ async function pickAndUpload(
       // A foto sobe para o Storage e o que fica no banco é a URL pública: o
       // registro é lido por outras pessoas, em outros aparelhos.
       // No web a URI é blob: e morre com a aba; lá a foto sobe na hora.
-      // local: quem chama sobe depois (cadastro, antes de existir sessão).
-      if (options.local) {
-        uploaded.push(asset.uri);
-        continue;
-      }
+      const photo = await shrinkPhoto(asset.uri, asset, options.maxSide);
       uploaded.push(
-        options.defer && Platform.OS !== 'web'
-          ? await keepLocalPhoto(asset.uri)
-          : await persistPhoto(asset.uri, options.folder),
+        options.defer && Platform.OS !== 'web' ? await keepLocalPhoto(photo) : await persistPhoto(photo, options.folder),
       );
     } catch (error) {
       // A mensagem real distingue "sem internet" de "arquivo não encontrado".
@@ -269,21 +263,17 @@ interface AvatarPickerProps {
   uri: string | null;
   name?: string;
   onChange: (uri: string | null) => void;
-  /**
-   * Devolve a URI do aparelho sem subir. É o caso do cadastro: o Storage exige
-   * sessão, e ela só existe depois que a conta é criada.
-   */
-  local?: boolean;
 }
 
 /** Foto de perfil redonda; tocar troca ou remove. */
-export function AvatarPicker({ uri, name, onChange, local = false }: AvatarPickerProps) {
+export function AvatarPicker({ uri, name, onChange }: AvatarPickerProps) {
   const [busy, setBusy] = useState(false);
 
   async function pick(source: Source) {
     setBusy(true);
     try {
-      const [url] = await pickAndUpload(source, { aspect: [1, 1], folder: 'avatars', local });
+      // Foto de perfil aparece no máximo em 96pt: 512px sobram.
+      const [url] = await pickAndUpload(source, { aspect: [1, 1], folder: 'avatars', maxSide: 512 });
       if (url) onChange(url);
     } finally {
       setBusy(false);

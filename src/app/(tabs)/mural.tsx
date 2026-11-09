@@ -6,11 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Noticia } from '@/domain/entities/Noticia';
 import { Icon } from '@/presentation/components/Icon';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
+import { TabHeader } from '@/presentation/components/TabHeader';
 import { AppText, EmptyState, FormError, Pill } from '@/presentation/components/ui';
 import { formatDate } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useAuth, useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
-import { colors, radius, rules, shadows, spacing } from '@/presentation/theme';
+import { colors, layout, radius, rules, shadows, spacing } from '@/presentation/theme';
 
 /**
  * Mural da ONG: resgates concluídos, campanhas, mutirões.
@@ -33,7 +35,7 @@ export default function MuralScreen() {
       <FlatList
         data={data ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -45,15 +47,15 @@ export default function MuralScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <AppText variant="title">Mural</AppText>
+          <View>
+            <TabHeader title="Mural" />
             <FormError message={error} />
           </View>
         }
         renderItem={({ item }) => (
           <NoticiaCard noticia={item} onPress={() => router.push({ pathname: '/noticias/[id]', params: { id: item.id } })} />
         )}
-        ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhuma notícia ainda" />}
+        ListEmptyComponent={loading ? <ListSkeleton variant="card" count={2} /> : <EmptyState title="Nenhuma notícia ainda" />}
       />
 
       {can('noticia:manage') && (
@@ -110,8 +112,7 @@ function NoticiaCard({ noticia, onPress }: { noticia: Noticia; onPress: () => vo
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs, marginBottom: spacing.sm },
+  list: { paddingHorizontal: spacing.xl, gap: spacing.lg, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

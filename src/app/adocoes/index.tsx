@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 
 import { AdocaoCard } from '@/presentation/components/AdocaoCard';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
 import { EmptyState, FormError } from '@/presentation/components/ui';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
@@ -29,7 +30,9 @@ export default function MyAdocoesScreen() {
         <AdocaoCard adocao={item} onPress={() => router.push({ pathname: '/adocoes/[id]', params: { id: item.id } })} />
       )}
       ListEmptyComponent={
-        loading ? undefined : (
+        loading ? (
+          <ListSkeleton />
+        ) : (
           <EmptyState
             title="Nenhum pedido ainda"
             message="Na página de um animal disponível, toque em Quero adotar."

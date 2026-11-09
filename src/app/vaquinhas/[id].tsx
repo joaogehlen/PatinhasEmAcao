@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,6 +42,8 @@ export default function VaquinhaDetailScreen() {
   const actor = useCurrentUser();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const heroHeight = Math.round(Math.min(window.height * 0.38, window.width * 0.75));
   const canManage = can('vaquinha:manage');
 
   const query = useCallback(async () => {
@@ -146,7 +149,7 @@ export default function VaquinhaDetailScreen() {
           />
         }
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { height: heroHeight }]}>
           {vaquinha.coverUri ? (
             <Image source={{ uri: vaquinha.coverUri }} contentFit="cover" transition={300} style={StyleSheet.absoluteFill} />
           ) : (
@@ -433,7 +436,7 @@ function EntradaForm({ vaquinhaId, onSaved }: { vaquinhaId: string; onSaved: () 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hero: { height: 300, backgroundColor: colors.primarySoft },
+  hero: { backgroundColor: colors.primarySoft },
   heroPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroShade: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
   sheet: {

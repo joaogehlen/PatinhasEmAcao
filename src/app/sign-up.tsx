@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 
-import { persistPhoto } from '@/infrastructure/photoStorage';
-import { AvatarPicker } from '@/presentation/components/PhotoPicker';
 import { AppText, Button, FormError, PasswordField, TextField } from '@/presentation/components/ui';
 import { describeError } from '@/presentation/format';
-import { useAuth, useServices } from '@/presentation/providers/AppProviders';
+import { useAuth } from '@/presentation/providers/AppProviders';
 import { colors, spacing } from '@/presentation/theme';
 
+/**
+ * Cadastro com o mínimo que a conta exige: nome, e-mail e senha. Telefone e
+ * foto ficam para Perfil › Meus dados — quem chega aqui quer entrar logo, às
+ * vezes no meio de uma denúncia.
+ */
 export default function SignUpScreen() {
-  const { register, setUser } = useAuth();
-  const { users } = useServices();
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
-  // URI do aparelho: o Storage exige sessão, então a foto sobe depois da conta criada.
-  const [photo, setPhoto] = useState<string | null>(null);
+  const { register } = useAuth();
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -24,57 +24,51 @@ export default function SignUpScreen() {
     setSubmitting(true);
     setError(null);
     setFieldErrors({});
-    let created;
     try {
-      created = await register(form);
+      await register({ ...form, phone: null });
     } catch (err) {
       const described = describeError(err);
       setError(described.message);
       setFieldErrors(described.fieldErrors);
       setSubmitting(false);
-      return;
-    }
-    if (!photo) return;
-    // A conta já existe: falha na foto não desfaz o cadastro, só avisa.
-    try {
-      const avatarUrl = await persistPhoto(photo, 'avatars');
-      setUser(await users.update(created, created.id, { name: created.name, phone: created.phone, role: created.role, avatarUrl }));
-    } catch (err) {
-      Alert.alert('Conta criada sem a foto', `${describeError(err).message} Você pode adicionar em Perfil > Meus dados.`);
     }
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <AppText variant="title" style={styles.title}>Crie sua conta</AppText>
+        <AppText variant="title">Crie sua conta</AppText>
+        <AppText variant="body" color={colors.textMuted} style={styles.hint}>
+          Telefone e foto você completa depois, no seu perfil.
+        </AppText>
 
         <FormError message={error} />
-        <AvatarPicker uri={photo} name={form.name} onChange={setPhoto} local />
-        <TextField label="Nome completo" icon="person" value={form.name} onChangeText={set('name')} error={fieldErrors.name} />
+        <TextField
+          label="Nome completo"
+          icon="person"
+          value={form.name}
+          onChangeText={set('name')}
+          autoComplete="name"
+          autoCapitalize="words"
+          error={fieldErrors.name}
+        />
         <TextField
           label="E-mail"
           icon="mail"
           value={form.email}
           onChangeText={set('email')}
           autoCapitalize="none"
+          autoComplete="email"
           keyboardType="email-address"
           error={fieldErrors.email}
-        />
-        <TextField
-          label="Telefone (opcional)"
-          icon="phone"
-          value={form.phone}
-          onChangeText={set('phone')}
-          keyboardType="phone-pad"
-          placeholder="(51) 99999-9999"
-          error={fieldErrors.phone}
         />
         <PasswordField
           label="Senha"
           placeholder="Mínimo de 6 caracteres"
           value={form.password}
           onChangeText={set('password')}
+          autoComplete="new-password"
+          onSubmitEditing={handleSubmit}
           error={fieldErrors.password}
         />
         <Button title="Criar conta" icon="check" onPress={handleSubmit} loading={submitting} />
@@ -86,5 +80,5 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: spacing.xl, paddingTop: spacing.sm, paddingBottom: 48 },
-  title: { marginBottom: spacing.lg },
+  hint: { marginTop: spacing.xs, marginBottom: spacing.lg },
 });

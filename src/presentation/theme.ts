@@ -83,6 +83,9 @@ export const fonts = {
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
+/** Coluna de leitura: no tablet o conteúdo não estica além disso. */
+export const layout = { maxWidth: 720 } as const;
+
 /** Raios generosos: é o que separa uma superfície contemporânea de uma caixa de formulário. */
 export const radius = { sm: 8, md: 12, lg: 18, xl: 26, pill: 999 } as const;
 

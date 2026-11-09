@@ -4,6 +4,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-nat
 
 import { USER_ROLE_LABELS, USER_ROLES, type User, type UserRole } from '@/domain/entities/User';
 import { Icon } from '@/presentation/components/Icon';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
 import { AppText, Avatar, ChipSelect, EmptyState, FormError, IconButton, Pill, TextField } from '@/presentation/components/ui';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
@@ -62,7 +63,7 @@ export default function UserListScreen() {
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={loading && data !== null} onRefresh={reload} tintColor={colors.primary} />}
       renderItem={({ item }) => <UserRow user={item} isSelf={item.id === actor.id} onPress={() => router.push(`/users/${item.id}`)} />}
-      ListEmptyComponent={loading ? undefined : <EmptyState title="Ninguém encontrado" />}
+      ListEmptyComponent={loading ? <ListSkeleton /> : <EmptyState title="Ninguém encontrado" />}
     />
   );
 }
@@ -70,7 +71,12 @@ export default function UserListScreen() {
 function UserRow({ user, isSelf, onPress }: { user: User; isSelf: boolean; onPress: () => void }) {
   const tone = roleStyles[user.role];
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${user.name}${isSelf ? ', você' : ''}, ${USER_ROLE_LABELS[user.role]}`}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+    >
       <Avatar name={user.name} uri={user.avatarUrl} size={48} />
       <View style={{ flex: 1, gap: 2 }}>
         <AppText variant="subheading" numberOfLines={1}>

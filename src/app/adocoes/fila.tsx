@@ -4,6 +4,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { ADOCAO_STATUS_LABELS, ADOCAO_STATUSES, type AdocaoStatus } from '@/domain/entities/Adocao';
 import { AdocaoCard } from '@/presentation/components/AdocaoCard';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
 import { AppText, ChipSelect, EmptyState, FormError } from '@/presentation/components/ui';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
@@ -46,7 +47,7 @@ export default function AdocaoQueueScreen() {
       renderItem={({ item }) => (
         <AdocaoCard adocao={item} showRequester onPress={() => router.push({ pathname: '/adocoes/[id]', params: { id: item.id } })} />
       )}
-      ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhum pedido aqui" />}
+      ListEmptyComponent={loading ? <ListSkeleton /> : <EmptyState title="Nenhum pedido aqui" />}
     />
   );
 }

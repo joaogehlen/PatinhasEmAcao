@@ -4,6 +4,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-nat
 
 import type { Aviso, AvisoKind } from '@/domain/entities/Aviso';
 import { Icon, type IconName } from '@/presentation/components/Icon';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
 import { AppText, EmptyState, FormError } from '@/presentation/components/ui';
 import { formatDateTime } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
@@ -66,7 +67,7 @@ export default function AvisosScreen() {
         ListHeaderComponent={<FormError message={error} />}
         refreshControl={<RefreshControl refreshing={loading && data !== null} onRefresh={reload} tintColor={colors.primary} />}
         renderItem={({ item }) => <AvisoRow aviso={item} onPress={() => void open(item)} />}
-        ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhum aviso por enquanto" />}
+        ListEmptyComponent={loading ? <ListSkeleton /> : <EmptyState title="Nenhum aviso por enquanto" />}
       />
     </>
   );

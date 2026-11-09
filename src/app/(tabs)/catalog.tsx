@@ -17,12 +17,14 @@ import {
 } from '@/domain/entities/Animal';
 import { isPendingReport } from '@/infrastructure/pendingReports';
 import { Icon } from '@/presentation/components/Icon';
+import { ListSkeleton } from '@/presentation/components/ListSkeleton';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
+import { TabHeader } from '@/presentation/components/TabHeader';
 import { AppText, Avatar, ChipSelect, EmptyState, FormError, TextField } from '@/presentation/components/ui';
 import { firstName, formatAge, greeting } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useAuth, useServices } from '@/presentation/providers/AppProviders';
-import { colors, radius, rules, shadows, spacing, statusStyles } from '@/presentation/theme';
+import { colors, layout, radius, rules, shadows, spacing, statusStyles } from '@/presentation/theme';
 
 const SPECIES_FILTER_LABELS: Record<AnimalSpecies, string> = { cachorro: 'Cachorros', gato: 'Gatos', outro: 'Outros' };
 const GRID_GAP = spacing.md;
@@ -34,7 +36,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const cardWidth = (width - SCREEN_PADDING * 2 - GRID_GAP) / 2;
+  const cardWidth = (Math.min(width, layout.maxWidth) - SCREEN_PADDING * 2 - GRID_GAP) / 2;
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -86,20 +88,17 @@ export default function HomeScreen() {
 
   const header = (
     <View>
-      <View style={[styles.topBar, { paddingTop: insets.top + spacing.md }]}>
-        <View style={{ flex: 1 }}>
-          <AppText variant="body" color={colors.textMuted}>
-            {greeting()}
-            {user ? `, ${firstName(user.name)}` : ''}
-          </AppText>
-          <AppText variant="title">Quem precisa de você hoje?</AppText>
-        </View>
-        {user && (
-          <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Abrir perfil">
-            <Avatar name={user.name} uri={user.avatarUrl} size={46} />
-          </Pressable>
-        )}
-      </View>
+      <TabHeader
+        subtitle={`${greeting()}${user ? `, ${firstName(user.name)}` : ''}`}
+        title="Quem precisa de você hoje?"
+        right={
+          user && (
+            <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Abrir perfil">
+              <Avatar name={user.name} uri={user.avatarUrl} size={46} />
+            </Pressable>
+          )
+        }
+      />
 
       <View style={styles.searchRow}>
         <View style={{ flex: 1 }}>
@@ -190,10 +189,10 @@ export default function HomeScreen() {
           <AnimalCard animal={item} width={cardWidth} onPress={() => router.push(`/animals/${item.id}`)} />
         )}
         ListEmptyComponent={
-          loading ? undefined : (
-            <EmptyState
-              title="Nenhum animal por aqui"
-            />
+          loading ? (
+            <ListSkeleton variant="card" count={2} />
+          ) : (
+            <EmptyState title="Nenhum animal por aqui" />
           )
         }
       />
@@ -260,9 +259,8 @@ function AnimalCard({ animal, width, onPress }: { animal: Animal; width: number;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: SCREEN_PADDING, gap: GRID_GAP },
+  list: { paddingHorizontal: SCREEN_PADDING, gap: GRID_GAP, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
 
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl },
 
   searchRow: { flexDirection: 'row', gap: spacing.sm },
   filterButton: {
