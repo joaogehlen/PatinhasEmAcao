@@ -66,7 +66,7 @@ export default function AvisosScreen() {
         ListHeaderComponent={<FormError message={error} />}
         refreshControl={<RefreshControl refreshing={loading && data !== null} onRefresh={reload} tintColor={colors.primary} />}
         renderItem={({ item }) => <AvisoRow aviso={item} onPress={() => void open(item)} />}
-        ListEmptyComponent={loading ? null : <EmptyState title="Nenhum aviso por enquanto" />}
+        ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhum aviso por enquanto" />}
       />
     </>
   );

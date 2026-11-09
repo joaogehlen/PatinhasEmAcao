@@ -61,7 +61,7 @@ export default function VaquinhasScreen() {
           />
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? undefined : (
             <EmptyState
               title="Nenhuma vaquinha aberta"
             />

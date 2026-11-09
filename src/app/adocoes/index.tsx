@@ -29,7 +29,7 @@ export default function MyAdocoesScreen() {
         <AdocaoCard adocao={item} onPress={() => router.push({ pathname: '/adocoes/[id]', params: { id: item.id } })} />
       )}
       ListEmptyComponent={
-        loading ? null : (
+        loading ? undefined : (
           <EmptyState
             title="Nenhum pedido ainda"
             message="Na página de um animal disponível, toque em Quero adotar."

@@ -62,7 +62,7 @@ export default function UserListScreen() {
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={loading && data !== null} onRefresh={reload} tintColor={colors.primary} />}
       renderItem={({ item }) => <UserRow user={item} isSelf={item.id === actor.id} onPress={() => router.push(`/users/${item.id}`)} />}
-      ListEmptyComponent={loading ? null : <EmptyState title="Ninguém encontrado" />}
+      ListEmptyComponent={loading ? undefined : <EmptyState title="Ninguém encontrado" />}
     />
   );
 }

@@ -46,7 +46,7 @@ export default function AdocaoQueueScreen() {
       renderItem={({ item }) => (
         <AdocaoCard adocao={item} showRequester onPress={() => router.push({ pathname: '/adocoes/[id]', params: { id: item.id } })} />
       )}
-      ListEmptyComponent={loading ? null : <EmptyState title="Nenhum pedido aqui" />}
+      ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhum pedido aqui" />}
     />
   );
 }

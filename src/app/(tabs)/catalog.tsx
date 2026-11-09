@@ -190,7 +190,7 @@ export default function HomeScreen() {
           <AnimalCard animal={item} width={cardWidth} onPress={() => router.push(`/animals/${item.id}`)} />
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? undefined : (
             <EmptyState
               title="Nenhum animal por aqui"
             />

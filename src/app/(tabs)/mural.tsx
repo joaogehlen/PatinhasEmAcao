@@ -53,7 +53,7 @@ export default function MuralScreen() {
         renderItem={({ item }) => (
           <NoticiaCard noticia={item} onPress={() => router.push({ pathname: '/noticias/[id]', params: { id: item.id } })} />
         )}
-        ListEmptyComponent={loading ? null : <EmptyState title="Nenhuma notícia ainda" />}
+        ListEmptyComponent={loading ? undefined : <EmptyState title="Nenhuma notícia ainda" />}
       />
 
       {can('noticia:manage') && (
