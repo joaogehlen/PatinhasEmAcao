@@ -11,7 +11,7 @@ No painel do [Supabase](https://supabase.com): **New project**.
 
 ## 2. Criar o esquema
 
-**SQL Editor → New query**, cole e rode **cada arquivo de [`migrations/`](migrations/) em ordem** (`0001_init.sql` até `0010_avisos.sql`).
+**SQL Editor → New query**, cole e rode **cada arquivo de [`migrations/`](migrations/) em ordem** (`0001_init.sql` até `0011_adocao_recusa_direta.sql`).
 
 Isso cria as tabelas, os enums, os triggers, as policies de RLS e o bucket `animal-photos` (que guarda também as fotos das vaquinhas, na pasta `vaquinhas/`).
 

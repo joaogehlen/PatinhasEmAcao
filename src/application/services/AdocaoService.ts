@@ -4,6 +4,7 @@ import { ConflictError, DomainError, ForbiddenError, NotFoundError } from '@/dom
 import type { AdocaoRepository } from '@/domain/repositories/AdocaoRepository';
 import type { AnimalRepository } from '@/domain/repositories/AnimalRepository';
 import { allowedNextAdocaoStatuses, canTransitionAdocao } from '@/domain/rules/adocaoStatus';
+import { canTransition } from '@/domain/rules/animalStatus';
 import { hasPermission } from '@/domain/rules/permissions';
 
 import type { Clock, IdGenerator } from '../ports';
@@ -93,5 +94,29 @@ export class AdocaoService {
     const reviewNote = validate(reviewNoteSchema, note ?? null);
     await this.adocoes.updateStatus(id, next, reviewNote);
     return this.getById(actor, id);
+  }
+
+  /**
+   * Aprova, marca o animal como adotado e recusa os outros pedidos abertos
+   * para ele — o caso comum, num toque. Cada passo deixa o rastro de sempre:
+   * o histórico do animal, o aviso a quem denunciou e a quem pediu.
+   *
+   * Se o animal já não está disponível (outro admin mexeu antes), o pedido é
+   * aprovado mesmo assim e a situação do animal fica como está.
+   */
+  async approveAndAdopt(actor: User, id: string, note?: unknown): Promise<Adocao> {
+    const approved = await this.changeStatus(actor, id, 'aprovada', note);
+
+    const animal = await this.animals.findById(approved.animalId);
+    if (animal && canTransition(animal.status, 'adotado')) {
+      await this.animals.changeStatus(animal.id, 'adotado', 'Pedido de adoção aprovado.');
+    }
+
+    const others = await this.adocoes.list({ animalId: approved.animalId, statuses: OPEN_STATUSES });
+    for (const other of others) {
+      if (other.id === approved.id) continue;
+      await this.adocoes.updateStatus(other.id, 'recusada', 'Este animal foi adotado por outra família. Obrigado pelo carinho.');
+    }
+    return approved;
   }
 }

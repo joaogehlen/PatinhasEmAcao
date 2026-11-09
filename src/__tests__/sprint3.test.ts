@@ -95,7 +95,7 @@ describe('mural de notícias (D1)', () => {
 
 describe('máquina de estados da adoção', () => {
   it('segue enviada → em análise → aprovada ou recusada', () => {
-    expect(allowedNextAdocaoStatuses('enviada')).toEqual(['em_analise']);
+    expect(allowedNextAdocaoStatuses('enviada')).toEqual(['em_analise', 'recusada']);
     expect(canTransitionAdocao('em_analise', 'aprovada')).toBe(true);
     expect(canTransitionAdocao('em_analise', 'recusada')).toBe(true);
     expect(canTransitionAdocao('enviada', 'aprovada')).toBe(false);
@@ -146,6 +146,38 @@ describe('pedidos de adoção (D2)', () => {
     expect(await service.queue(admin)).toHaveLength(1);
     await expect(service.queue(morador)).rejects.toBeInstanceOf(ForbiddenError);
     expect(await service.mine(outro)).toHaveLength(0);
+  });
+});
+
+describe('aprovar e marcar adotado', () => {
+  it('aprova, marca o animal como adotado e recusa os outros pedidos abertos', async () => {
+    const animals = new InMemoryAnimalRepository();
+    animals.rows.set('animal-1', makeAnimal());
+    const repo = new InMemoryAdocaoRepository();
+    const service = new AdocaoService(repo, animals, sequentialIds(), fixedClock);
+    const admin = makeUser('admin');
+    const ana = makeUser('morador', { id: 'ana' });
+    const beto = makeUser('morador', { id: 'beto' });
+
+    const pedidoAna = await service.request(ana, 'animal-1', validAdocaoInput);
+    const pedidoBeto = await service.request(beto, 'animal-1', validAdocaoInput);
+    await service.changeStatus(admin, pedidoAna.id, 'em_analise');
+
+    const aprovado = await service.approveAndAdopt(admin, pedidoAna.id);
+
+    expect(aprovado.status).toBe('aprovada');
+    expect(animals.rows.get('animal-1')!.status).toBe('adotado');
+    expect(animals.history.at(-1)).toEqual(expect.objectContaining({ toStatus: 'adotado', note: 'Pedido de adoção aprovado.' }));
+    expect((await repo.findById(pedidoBeto.id))!.status).toBe('recusada');
+  });
+
+  it('só admin usa o atalho', async () => {
+    const animals = new InMemoryAnimalRepository();
+    animals.rows.set('animal-1', makeAnimal());
+    const service = new AdocaoService(new InMemoryAdocaoRepository(), animals, sequentialIds(), fixedClock);
+    const morador = makeUser('morador');
+    const pedido = await service.request(morador, 'animal-1', validAdocaoInput);
+    await expect(service.approveAndAdopt(morador, pedido.id)).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

@@ -41,30 +41,41 @@ export default function AdocaoDetailScreen() {
   const nextStatuses = adocoes.allowedNextStatuses(actor, adocao);
   const isReviewer = can('adocao:review');
 
+  async function run(action: () => Promise<unknown>) {
+    setChanging(true);
+    try {
+      await action();
+      setNote('');
+      await reload();
+    } catch (err) {
+      Alert.alert('Não foi possível alterar', describeError(err).message);
+    } finally {
+      setChanging(false);
+    }
+  }
+
   function confirmChange(next: AdocaoStatus) {
-    const approving = next === 'aprovada';
+    const id = adocao!.id;
+    if (next === 'aprovada') {
+      // O caso comum é aprovar e entregar: um toque marca o animal como adotado
+      // e recusa os outros pedidos abertos. "Só aprovar" fica para quando a
+      // ONG ainda vai visitar a casa antes de entregar.
+      Alert.alert('Aprovar pedido', 'O animal já vai para a nova família?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Só aprovar', onPress: () => void run(() => adocoes.changeStatus(actor, id, 'aprovada', note)) },
+        { text: 'Aprovar e marcar adotado', onPress: () => void run(() => adocoes.approveAndAdopt(actor, id, note)) },
+      ]);
+      return;
+    }
     Alert.alert(
       ADOCAO_STATUS_LABELS[next],
-      approving
-        ? 'Aprovar o pedido não marca o animal como adotado. Quando a adoção acontecer, registre na página do animal.'
-        : `Marcar o pedido como ${ADOCAO_STATUS_LABELS[next].toLowerCase()}? Quem pediu recebe um aviso${note.trim() ? ' com a observação' : ''}.`,
+      `Marcar o pedido como ${ADOCAO_STATUS_LABELS[next].toLowerCase()}? Quem pediu recebe um aviso${note.trim() ? ' com a observação' : ''}.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
           style: next === 'recusada' ? 'destructive' : 'default',
-          onPress: async () => {
-            setChanging(true);
-            try {
-              await adocoes.changeStatus(actor, adocao!.id, next, note);
-              setNote('');
-              await reload();
-            } catch (err) {
-              Alert.alert('Não foi possível alterar', describeError(err).message);
-            } finally {
-              setChanging(false);
-            }
-          },
+          onPress: () => void run(() => adocoes.changeStatus(actor, id, next, note)),
         },
       ],
     );

@@ -63,7 +63,10 @@ export default function HomeScreen() {
     const byStatus = {} as Record<AnimalStatus, number>;
     for (const value of ANIMAL_STATUSES) byStatus[value] = 0;
     for (const animal of all) byStatus[animal.status] += 1;
-    return { filtered, byStatus, total: all.length };
+    // Sem filtro de situação, o catálogo mostra quem ainda precisa de alguém:
+    // os adotados saem da lista e continuam no chip "Adotado".
+    const visible = status ? filtered : filtered.filter((animal) => animal.status !== 'adotado');
+    return { filtered: visible, byStatus, active: all.length - byStatus.adotado };
   }, [animals, debouncedSearch, species, size, status]);
   const { data, error, loading, reload } = useFocusedQuery(query);
 
@@ -139,7 +142,7 @@ export default function HomeScreen() {
           labels={statusLabels}
           value={status}
           onChange={setStatus}
-          allLabel={data ? `Tudo · ${data.total}` : 'Tudo'}
+          allLabel={data ? `Ativos · ${data.active}` : 'Ativos'}
           scroll
         />
       </View>

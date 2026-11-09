@@ -56,6 +56,12 @@ export function keepGuestReports(animals: Animal[]): void {
   write([...read(GUEST_REPORTS_KEY).filter((item) => !ids.has(item.id)), ...animals], GUEST_REPORTS_KEY);
 }
 
+/** Tira o animal das cópias guardadas no aparelho (fila e denúncias de convidado). */
+function forgetLocal(id: string): void {
+  write(read().filter((item) => item.id !== id));
+  write(read(GUEST_REPORTS_KEY).filter((item) => item.id !== id), GUEST_REPORTS_KEY);
+}
+
 function upsert(animal: Animal): void {
   write([...read().filter((item) => item.id !== animal.id), animal]);
 }
@@ -200,6 +206,16 @@ export function startPendingReportsSync(): () => void {
 export class OfflineFirstAnimalRepository extends SupabaseAnimalRepository {
   override async create(animal: Animal): Promise<void> {
     await sendOrQueue(animal);
+  }
+
+  /**
+   * Apaga no servidor e também a cópia guardada no aparelho. Sem isso, um animal
+   * denunciado aqui como convidado voltava ao catálogo depois de excluído: a
+   * lista junta o servidor com as cópias locais.
+   */
+  override async delete(id: string): Promise<void> {
+    await super.delete(id);
+    forgetLocal(id);
   }
 
   override async list(filters: AnimalFilters = {}): Promise<Animal[]> {

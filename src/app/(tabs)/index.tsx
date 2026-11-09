@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,19 @@ export default function MapScreen() {
     ? { ...coords, latitudeDelta: 0.02, longitudeDelta: 0.02 }
     : ARVOREZINHA_REGION;
 
+  // O mapa monta antes do GPS responder, e initialRegion só vale na montagem:
+  // sem isto ele ficava sempre em Arvorezinha. Centraliza uma vez, quando a
+  // localização chega; depois a pessoa mexe no mapa à vontade. Sem permissão,
+  // Arvorezinha continua sendo o ponto de partida.
+  // Espera o mapa ficar pronto: no Android, animar antes disso é ignorado.
+  const centered = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    if (!coords || !mapReady || centered.current) return;
+    centered.current = true;
+    mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 500);
+  }, [coords, mapReady]);
+
   async function centerOnMe() {
     const next = coords ?? (await request());
     if (next) {
@@ -77,6 +90,7 @@ export default function MapScreen() {
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
+        onMapReady={() => setMapReady(true)}
         customMapStyle={Platform.OS === 'android' ? MAP_STYLE_DARK : undefined}
         userInterfaceStyle="dark"
         showsUserLocation={locationStatus === 'granted'}

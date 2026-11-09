@@ -2,6 +2,8 @@ import type { Animal, AnimalStatus, AnimalStatusChange } from '@/domain/entities
 import type { AnimalFilters, AnimalRepository } from '@/domain/repositories/AnimalRepository';
 
 import { supabase } from '../supabase/client';
+import { ForbiddenError } from '@/domain/errors';
+
 import { fromAnimal, toAnimal, toStatusChange, translateError } from '../supabase/mappers';
 
 /**
@@ -63,9 +65,19 @@ export class SupabaseAnimalRepository implements AnimalRepository {
     if (error) translateError(error);
   }
 
+  /**
+   * A RLS que recusa um DELETE não devolve erro: só apaga zero linhas. Sem
+   * conferir, a tela voltava como se tivesse apagado. Se o animal já não existe
+   * no servidor, a exclusão está feita — conta como sucesso.
+   */
   async delete(id: string): Promise<void> {
-    const { error } = await supabase.from('animals').delete().eq('id', id);
+    const { data, error } = await supabase.from('animals').delete().eq('id', id).select('id');
     if (error) translateError(error);
+    if (data && data.length > 0) return;
+
+    const { data: still, error: checkError } = await supabase.from('animals').select('id').eq('id', id).maybeSingle();
+    if (checkError) translateError(checkError);
+    if (still) throw new ForbiddenError('O servidor recusou a exclusão. Só administradores excluem, e animais adotados não podem ser excluídos.');
   }
 
   async statusHistory(animalId: string): Promise<AnimalStatusChange[]> {

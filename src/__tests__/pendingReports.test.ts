@@ -10,6 +10,7 @@ const storage = new Map<string, string>();
 
 const mockNetwork = { isConnected: true, isInternetReachable: true };
 const mockCreate = jest.fn<Promise<void>, [Animal]>();
+const mockServerAnimals: Animal[] = [];
 const mockPersistPhoto = jest.fn(async (_uri: string) => 'https://cdn/foto.jpg');
 
 jest.mock('expo-network', () => ({
@@ -28,6 +29,13 @@ jest.mock('@/infrastructure/repositories/SupabaseAnimalRepository', () => ({
     create(animal: Animal) {
       return mockCreate(animal);
     }
+    async list() {
+      return [...mockServerAnimals];
+    }
+    async delete(id: string) {
+      const index = mockServerAnimals.findIndex((a) => a.id === id);
+      if (index >= 0) mockServerAnimals.splice(index, 1);
+    }
   },
 }));
 let mockSessionUserId: string | undefined;
@@ -41,7 +49,14 @@ jest.mock('@/infrastructure/supabase/client', () => ({
 }));
 jest.mock('@/infrastructure/supabase/mappers', () => ({ isOffline: (m: string) => m.includes('Network request failed') }));
 
-import { flushPendingReports, isPendingReport, pendingReportsCount, sendOrQueue } from '@/infrastructure/pendingReports';
+import {
+  OfflineFirstAnimalRepository,
+  flushPendingReports,
+  isPendingReport,
+  keepGuestReports,
+  pendingReportsCount,
+  sendOrQueue,
+} from '@/infrastructure/pendingReports';
 
 const animal = (id: string, photoUri: string | null = null) => ({ id, photoUri }) as Animal;
 
@@ -51,6 +66,7 @@ beforeEach(() => {
   mockPersistPhoto.mockClear();
   mockNetwork.isConnected = true;
   mockSessionUserId = undefined;
+  mockServerAnimals.length = 0;
 });
 
 test('convidado trocou de conta antes de enviar: a denúncia passa para a sessão atual', async () => {
@@ -89,6 +105,17 @@ test('foto já enviada não sobe de novo na próxima tentativa', async () => {
   await flushPendingReports();
   expect(mockPersistPhoto).toHaveBeenCalledTimes(1);
   expect(pendingReportsCount()).toBe(0);
+});
+
+test('excluir apaga também a cópia de convidado guardada no aparelho', async () => {
+  const mel = { ...animal('mel'), status: 'resgatado' } as Animal;
+  mockServerAnimals.push(mel);
+  keepGuestReports([mel]); // denunciada aqui como convidado, antes de entrar na conta
+  const repo = new OfflineFirstAnimalRepository();
+  expect((await repo.list()).map((a) => a.id)).toEqual(['mel']);
+
+  await repo.delete('mel');
+  expect(await repo.list()).toEqual([]);
 });
 
 test('erro do servidor sobe para a tela e não fica na fila', async () => {
