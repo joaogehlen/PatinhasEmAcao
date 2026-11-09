@@ -181,7 +181,7 @@ export function VaquinhaForm({ initial, submitLabel, onSubmit, footer }: Vaquinh
 }
 
 /** Carrossel de animais do catálogo; tocar no selecionado desmarca. */
-function AnimalSelect({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
+export function AnimalSelect({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
   const { animals } = useServices();
   const query = useCallback(() => animals.list(), [animals]);
   const { data, error } = useFocusedQuery(query);

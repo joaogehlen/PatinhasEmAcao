@@ -15,11 +15,12 @@ import {
   TEMPERAMENT_LABELS,
   type AnimalStatus,
 } from '@/domain/entities/Animal';
+import { ADOCAO_STATUS_LABELS } from '@/domain/entities/Adocao';
 import { vaquinhaProgress } from '@/domain/entities/Vaquinha';
 import { isPendingReport } from '@/infrastructure/pendingReports';
 import { Icon, type IconName } from '@/presentation/components/Icon';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
-import { AppText, Button, Card, FormError, Pill, SectionHeader, TextField } from '@/presentation/components/ui';
+import { AppText, Avatar, Button, Card, FormError, Pill, SectionHeader, TextField } from '@/presentation/components/ui';
 import { describeError, formatAge, formatDate, formatDateTime, formatMoney } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useKeyboardVisible } from '@/presentation/hooks/useKeyboardVisible';
@@ -31,14 +32,14 @@ const JOURNEY: AnimalStatus[] = ANIMAL_STATUSES.filter((status) => status !== 'e
 
 export default function AnimalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { animals, vaquinhas } = useServices();
+  const { animals, vaquinhas, adocoes } = useServices();
   const { user, can } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const canSeeVaquinhas = can('vaquinha:view');
   const query = useCallback(async () => {
-    const [animal, history, campaigns] = await Promise.all([
+    const [animal, history, campaigns, openAdocao] = await Promise.all([
       animals.getById(id),
       animals.statusHistory(id),
       // Convidado não vê vaquinhas; para ele a seção simplesmente não existe.
@@ -46,9 +47,11 @@ export default function AnimalDetailScreen() {
       canSeeVaquinhas && user
         ? vaquinhas.list(user, { animalId: id, activeOnly: true }).catch(() => [])
         : Promise.resolve([]),
+      // Pedido de adoção em aberto desta pessoa: troca o botão pelo acompanhamento.
+      user ? adocoes.openFor(user, id).catch(() => null) : Promise.resolve(null),
     ]);
-    return { animal, history, campaigns };
-  }, [animals, vaquinhas, canSeeVaquinhas, user, id]);
+    return { animal, history, campaigns, openAdocao };
+  }, [animals, vaquinhas, adocoes, canSeeVaquinhas, user, id]);
   const { data, error, loading, reload } = useFocusedQuery(query);
   const [changing, setChanging] = useState(false);
   const [statusNote, setStatusNote] = useState('');
@@ -65,7 +68,7 @@ export default function AnimalDetailScreen() {
     );
   }
 
-  const { animal, history, campaigns } = data;
+  const { animal, history, campaigns, openAdocao } = data;
   // Pendente ainda não existe no servidor: nada a editar, excluir ou avançar.
   const pending = isPendingReport(animal.id);
   const canEdit = !pending && animals.canEdit(user, animal);
@@ -191,6 +194,32 @@ export default function AnimalDetailScreen() {
             </View>
           )}
 
+          {animal.status === 'disponivel' && !pending && can('adocao:request') && (
+            openAdocao ? (
+              <Pressable
+                onPress={() => router.push({ pathname: '/adocoes/[id]', params: { id: openAdocao.id } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Seu pedido de adoção: ${ADOCAO_STATUS_LABELS[openAdocao.status]}. Abrir pedido`}
+                style={({ pressed }) => [styles.campaign, pressed && { opacity: 0.85 }]}
+              >
+                <Icon name="heart" size={20} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyStrong">Seu pedido de adoção</AppText>
+                  <AppText variant="caption" color={colors.textMuted}>
+                    {ADOCAO_STATUS_LABELS[openAdocao.status]}
+                  </AppText>
+                </View>
+                <Icon name="chevronRight" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : (
+              <Button
+                title="Quero adotar"
+                icon="heart"
+                onPress={() => router.push({ pathname: '/adocoes/new/[animalId]', params: { animalId: animal.id } })}
+              />
+            )
+          )}
+
           <View style={styles.section}>
             <SectionHeader title="Jornada" icon="sparkles" />
             <Card>
@@ -311,6 +340,15 @@ export default function AnimalDetailScreen() {
                         {entry.note}
                       </AppText>
                     )}
+                    {/* Quem atendeu o caso: numa ONG de vínculo pessoal, isso é parte da confiança. */}
+                    {entry.changedByName && (
+                      <View style={styles.timelineAuthor}>
+                        <Avatar name={entry.changedByName} uri={entry.changedByAvatar} size={24} />
+                        <AppText variant="caption" color={colors.textSoft}>
+                          {entry.changedByName}
+                        </AppText>
+                      </View>
+                    )}
                   </View>
                 </View>
               ))}
@@ -418,6 +456,7 @@ const styles = StyleSheet.create({
   timelineMarker: { alignItems: 'center', width: 14 },
   timelineDot: { width: 12, height: 12, borderRadius: 6, marginTop: 5 },
   timelineLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
+  timelineAuthor: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
   timelineBody: { flex: 1, paddingBottom: spacing.lg, gap: 2 },
   actionBar: {
     position: 'absolute',

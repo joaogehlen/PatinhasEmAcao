@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SIZE_LABELS, STATUS_LABELS, type Animal } from '@/domain/entities/Animal';
 import { isPendingReport } from '@/infrastructure/pendingReports';
+import { AvisoBell } from '@/presentation/components/AvisoBell';
 import { Icon } from '@/presentation/components/Icon';
 import { AppText } from '@/presentation/components/ui';
 import { formatAge } from '@/presentation/format';
@@ -30,7 +31,7 @@ import { colors, radius, rules, shadows, spacing, statusStyles } from '@/present
  */
 export default function MapScreen() {
   const { animals } = useServices();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
@@ -91,6 +92,13 @@ export default function MapScreen() {
           />
         ))}
       </MapView>
+
+      {/* Visitante sem nenhuma denúncia ainda não tem sessão, nem avisos. */}
+      {user && user.id !== '' && (
+        <View style={[styles.bell, { top: insets.top + spacing.md }]}>
+          <AvisoBell />
+        </View>
+      )}
 
       {locationStatus === 'denied' && (
         <View style={[styles.notice, { bottom: insets.bottom + 150 }]}>
@@ -215,6 +223,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadows.card,
   },
+
+  bell: { position: 'absolute', right: spacing.lg },
 
   actions: {
     position: 'absolute',

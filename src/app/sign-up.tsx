@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 
+import { persistPhoto } from '@/infrastructure/photoStorage';
+import { AvatarPicker } from '@/presentation/components/PhotoPicker';
 import { AppText, Button, FormError, PasswordField, TextField } from '@/presentation/components/ui';
 import { describeError } from '@/presentation/format';
-import { useAuth } from '@/presentation/providers/AppProviders';
+import { useAuth, useServices } from '@/presentation/providers/AppProviders';
 import { colors, spacing } from '@/presentation/theme';
 
 export default function SignUpScreen() {
-  const { register } = useAuth();
+  const { register, setUser } = useAuth();
+  const { users } = useServices();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  // URI do aparelho: o Storage exige sessão, então a foto sobe depois da conta criada.
+  const [photo, setPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -19,13 +24,23 @@ export default function SignUpScreen() {
     setSubmitting(true);
     setError(null);
     setFieldErrors({});
+    let created;
     try {
-      await register(form);
+      created = await register(form);
     } catch (err) {
       const described = describeError(err);
       setError(described.message);
       setFieldErrors(described.fieldErrors);
       setSubmitting(false);
+      return;
+    }
+    if (!photo) return;
+    // A conta já existe: falha na foto não desfaz o cadastro, só avisa.
+    try {
+      const avatarUrl = await persistPhoto(photo, 'avatars');
+      setUser(await users.update(created, created.id, { name: created.name, phone: created.phone, role: created.role, avatarUrl }));
+    } catch (err) {
+      Alert.alert('Conta criada sem a foto', `${describeError(err).message} Você pode adicionar em Perfil > Meus dados.`);
     }
   }
 
@@ -35,6 +50,7 @@ export default function SignUpScreen() {
         <AppText variant="title" style={styles.title}>Crie sua conta</AppText>
 
         <FormError message={error} />
+        <AvatarPicker uri={photo} name={form.name} onChange={setPhoto} local />
         <TextField label="Nome completo" icon="person" value={form.name} onChangeText={set('name')} error={fieldErrors.name} />
         <TextField
           label="E-mail"
@@ -71,5 +87,4 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: spacing.xl, paddingTop: spacing.sm, paddingBottom: 48 },
   title: { marginBottom: spacing.lg },
-
 });

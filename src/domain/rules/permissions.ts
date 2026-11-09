@@ -17,10 +17,15 @@ export type Permission =
   | 'user:list'
   | 'user:manage'
   | 'vaquinha:view'
-  | 'vaquinha:manage';
+  | 'vaquinha:manage'
+  | 'noticia:view'
+  | 'noticia:manage'
+  | 'adocao:request'
+  | 'adocao:review'
+  | 'aviso:view';
 
 const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
-  morador: ['animal:create', 'animal:viewAll', 'vaquinha:view'],
+  morador: ['animal:create', 'animal:viewAll', 'vaquinha:view', 'noticia:view', 'adocao:request', 'aviso:view'],
   admin: [
     'animal:create',
     'animal:update',
@@ -31,15 +36,21 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'user:manage',
     'vaquinha:view',
     'vaquinha:manage',
+    'noticia:view',
+    'noticia:manage',
+    'adocao:request',
+    'adocao:review',
+    'aviso:view',
   ],
 };
 
 /**
  * O convidado veio fazer uma coisa: avisar que tem um animal precisando de
  * ajuda. Ele registra a denúncia e acompanha as próprias — o resto do app
- * exige conta, e essa é a razão concreta para criar uma.
+ * exige conta, e essa é a razão concreta para criar uma. Os avisos são parte
+ * de acompanhar: ele fica sabendo quando a situação do animal muda.
  */
-const GUEST_PERMISSIONS: readonly Permission[] = ['animal:create'];
+const GUEST_PERMISSIONS: readonly Permission[] = ['animal:create', 'aviso:view'];
 
 export function hasPermission(user: Pick<User, 'role' | 'isGuest'> | null, permission: Permission): boolean {
   if (user === null) return false;

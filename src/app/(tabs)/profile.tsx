@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { USER_ROLE_LABELS } from '@/domain/entities/User';
 import { keepGuestReports } from '@/infrastructure/pendingReports';
+import { AvisoBell } from '@/presentation/components/AvisoBell';
 import { AppText, Avatar, Button, Card, ListItem, Pill } from '@/presentation/components/ui';
 import { formatDate } from '@/presentation/format';
 import { useAuth, useCurrentUser, useServices } from '@/presentation/providers/AppProviders';
@@ -15,7 +16,7 @@ const SOBRE =
 
 export default function ProfileScreen() {
   const user = useCurrentUser();
-  const { logout } = useAuth();
+  const { logout, can } = useAuth();
   const { animals } = useServices();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -68,7 +69,13 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.guestBody, { paddingTop: insets.top + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
-        <AppText variant="title">Você está sem conta</AppText>
+        <View style={styles.titleRow}>
+          <AppText variant="title" style={{ flex: 1 }}>
+            Você está sem conta
+          </AppText>
+          {/* Quem já denunciou recebe aviso quando a situação do animal muda. */}
+          {user.id !== '' && <AvisoBell />}
+        </View>
 
         <View style={styles.guestAvatar}>
           <Avatar size={140} />
@@ -105,7 +112,10 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.xxl }]}>
-        <Avatar name={user.name} size={72} />
+        <View style={[styles.bell, { top: insets.top + spacing.md }]}>
+          <AvisoBell />
+        </View>
+        <Avatar name={user.name} uri={user.avatarUrl} size={72} />
         <AppText variant="title">{user.name}</AppText>
         {user.email ? (
           <AppText variant="body" color={colors.textMuted}>
@@ -136,6 +146,22 @@ export default function ProfileScreen() {
           />
         </Card>
 
+        {(can('adocao:request') || can('adocao:review') || can('user:list')) && (
+          <Card style={styles.menu}>
+            {can('adocao:review') ? (
+              <ListItem icon="heart" title="Pedidos de adoção" onPress={() => router.push('/adocoes/fila')} />
+            ) : (
+              <ListItem icon="heart" title="Meus pedidos de adoção" onPress={() => router.push('/adocoes')} />
+            )}
+            {can('user:list') && (
+              <>
+                <View style={styles.separator} />
+                <ListItem icon="people" title="Gerenciar usuários" onPress={() => router.push('/users')} />
+              </>
+            )}
+          </Card>
+        )}
+
         <Card style={styles.menu}>
           <ListItem icon="logout" title="Sair da conta" onPress={confirmLogout} danger />
         </Card>
@@ -151,6 +177,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
+  bell: { position: 'absolute', right: spacing.xl },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   center: { textAlign: 'center' },
   body: { paddingHorizontal: spacing.xl, gap: spacing.lg },
   menu: { padding: 0, paddingVertical: spacing.xs, borderRadius: radius.lg },

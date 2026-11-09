@@ -182,19 +182,20 @@ Mapas e GPS, fluxo de status do resgate, migração para o Supabase, modo convid
 
 Ficou fora: **PB28 – Fila de casos abertos** (RF0021), remanejado para a sprint final. Entrou antecipado: **PB25 – Denúncia sem conexão**, previsto para a Sprint 3.
 
-### Sprint 3 — Interação e Social (planejada)
+### Sprint 3 — Interação e Social ✅
 
-| PB | Entrega prevista | RF | Estimativa |
+| PB | Entrega | RF | Migração |
 | --- | --- | --- | --- |
-| PB24 | **Mural de notícias da ONG** — ver detalhes abaixo | RF0017 | 12 h |
-| PB15 | Formulário digital de adoção com acompanhamento da solicitação | RF0013 | 12 h |
-| PB23 | Foto de perfil, exibida também no histórico do animal | RF0016 | 6 h |
-| PB18 | Central de avisos dentro do app (push fica para quando houver build própria) | RF0012 | 12 h |
-| | | **Total** | **42 h** |
+| PB24 | **Mural de notícias** — aba Mural; a gestão de usuários foi para o Perfil do admin | RF0017 | `0008` |
+| PB15 | **Formulário de adoção** — "Quero adotar" no animal disponível, "Meus pedidos" e fila do admin no Perfil | RF0013 | `0009` |
+| PB23 | **Foto de perfil** no cadastro e em Meus dados; nome e foto de quem agiu no histórico do animal (função `animal_history`, que não abre a RLS de `profiles`) | RF0016 | `0007` |
+| PB18 | **Central de avisos** — sino com contador no Mapa e no Perfil; avisos gerados por triggers no banco. Push fica para quando houver build própria | RF0012 | `0010` |
+
+Além do previsto: pedido de adoção novo avisa os admins e a avaliação avisa quem pediu; o convidado com sessão também recebe aviso da mudança de situação das denúncias dele.
 
 **Mural de notícias (PB24).** Posts curtos da ONG — resgate concluído, campanha nova, mutirão — com título, texto, capa, até 6 fotos e vínculo opcional com um animal ou uma vaquinha, que aparece como cartão clicável. Só o admin publica, edita, exclui e fixa um post no topo; morador e admin leem; o convidado não vê (RF0017: "usuários com conta"). O Mural vira uma aba, e a gestão de usuários do admin passa para dentro do Perfil, mantendo cinco abas.
 
-**Formulário de adoção (PB15).** Disponível só para animais "Disponível para adoção". Perguntas sobre moradia, pátio, outros animais, crianças, experiência e motivo. A solicitação segue *Enviada → Em análise → Aprovada / Recusada*; o morador acompanha em "Minhas solicitações" e o admin avalia numa fila. Um pedido aberto por pessoa e animal. Aprovar não marca o animal como adotado: isso continua no fluxo de status, que deixa rastro no histórico.
+**Formulário de adoção (PB15).** Disponível só para animais "Disponível para adoção". Perguntas sobre moradia, pátio, outros animais, crianças, experiência e motivo. A solicitação segue *Enviada → Em análise → Aprovada / Recusada*; o morador acompanha em "Meus pedidos de adoção" e o admin avalia numa fila ("Pedidos de adoção"), com o contato de quem pediu. Um pedido aberto por pessoa e animal. Aprovar não marca o animal como adotado: isso continua no fluxo de status, que deixa rastro no histórico.
 
 **Central de avisos (PB18).** Denúncia nova avisa a equipe da ONG; mudança de situação avisa quem denunciou. Fica dentro do app, com contador, porque o Expo Go não entrega push. Push real exige *development build* (EAS) e fica para quando o app deixar de depender do Expo Go.
 

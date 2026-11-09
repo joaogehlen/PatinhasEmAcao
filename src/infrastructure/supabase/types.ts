@@ -5,6 +5,8 @@ import type {
   AnimalStatus,
   AnimalTemperament,
 } from '@/domain/entities/Animal';
+import type { AdocaoStatus, HousingType } from '@/domain/entities/Adocao';
+import type { AvisoKind } from '@/domain/entities/Aviso';
 import type { UserRole } from '@/domain/entities/User';
 
 /**
@@ -35,6 +37,8 @@ export type ProfileRow = {
   role: UserRole;
   /** Exclusão lógica (migração 0004). Linhas preenchidas somem das consultas. */
   deleted_at: string | null;
+  /** Foto de perfil (migração 0007). */
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -95,6 +99,60 @@ export type AnimalStatusHistoryRow = {
   changed_at: string;
 };
 
+export type NoticiaRow = {
+  id: string;
+  title: string;
+  body: string;
+  cover_uri: string | null;
+  photo_uris: string[];
+  animal_id: string | null;
+  vaquinha_id: string | null;
+  pinned: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdocaoRow = {
+  id: string;
+  animal_id: string;
+  requester_id: string;
+  housing: HousingType;
+  has_yard: boolean;
+  other_animals: string | null;
+  has_children: boolean;
+  experience: string | null;
+  reason: string;
+  status: AdocaoStatus;
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** View adocoes_detalhe (0009): o pedido com nome e contato de quem pediu. */
+export type AdocaoDetalheRow = AdocaoRow & {
+  requester_name: string | null;
+  requester_phone: string | null;
+  requester_email: string | null;
+  requester_avatar: string | null;
+  animal_name: string | null;
+  animal_photo: string | null;
+};
+
+export type AvisoRow = {
+  id: string;
+  user_id: string;
+  kind: AvisoKind;
+  title: string;
+  body: string;
+  animal_id: string | null;
+  adocao_id: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
 /**
  * Colunas que o cliente escreve. created_at e updated_at ficam de fora: são
  * do banco. O id vai junto porque os serviços já geram o UUID antes de gravar.
@@ -104,12 +162,19 @@ export type AnimalUpdate = Partial<Omit<AnimalRow, 'id' | 'created_at' | 'update
   /** Campo de passagem: o trigger copia para o histórico e zera (0006). */
   status_note?: string | null;
 };
-export type ProfileUpdate = Partial<Pick<ProfileRow, 'name' | 'phone' | 'role' | 'deleted_at'>>;
+export type ProfileUpdate = Partial<Pick<ProfileRow, 'name' | 'phone' | 'role' | 'deleted_at' | 'avatar_url'>>;
 export type StatusHistoryInsert = Omit<AnimalStatusHistoryRow, 'id' | 'changed_at'>;
 /** raised_cents fica de fora: quem escreve é o trigger, a partir das entradas. */
 export type VaquinhaInsert = Omit<VaquinhaRow, 'created_at' | 'updated_at' | 'raised_cents'>;
 export type VaquinhaUpdate = Partial<Omit<VaquinhaInsert, 'id' | 'created_by'>>;
 export type VaquinhaEntradaInsert = Omit<VaquinhaEntradaRow, 'created_at'>;
+export type NoticiaInsert = Omit<NoticiaRow, 'created_at' | 'updated_at'>;
+export type NoticiaUpdate = Partial<Omit<NoticiaInsert, 'id' | 'created_by'>>;
+/** Quem avaliou e quando são carimbados pelo trigger guard_adocao. */
+export type AdocaoInsert = Omit<AdocaoRow, 'created_at' | 'updated_at' | 'reviewed_by' | 'reviewed_at'>;
+export type AdocaoUpdate = Partial<Pick<AdocaoRow, 'status' | 'review_note'>>;
+/** Avisos nascem nos triggers; o cliente só marca como lido. */
+export type AvisoUpdate = Partial<Pick<AvisoRow, 'read_at'>>;
 
 export type Database = {
   public: {
@@ -150,8 +215,32 @@ export type Database = {
         Update: Partial<VaquinhaEntradaInsert>;
         Relationships: [];
       };
+      noticias: {
+        Row: NoticiaRow;
+        Insert: NoticiaInsert;
+        Update: NoticiaUpdate;
+        Relationships: [];
+      };
+      adocoes: {
+        Row: AdocaoRow;
+        Insert: AdocaoInsert;
+        Update: AdocaoUpdate;
+        Relationships: [];
+      };
+      avisos: {
+        Row: AvisoRow;
+        // Sem policy de INSERT: o tipo existe porque o postgrest-js exige.
+        Insert: AvisoRow;
+        Update: AvisoUpdate;
+        Relationships: [];
+      };
     };
-    Views: { [_ in never]: never };
+    Views: {
+      adocoes_detalhe: {
+        Row: AdocaoDetalheRow;
+        Relationships: [];
+      };
+    };
     Functions: {
       auth_role: {
         Args: Record<PropertyKey, never>;
@@ -165,6 +254,10 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
+      animal_history: {
+        Args: { target_animal: string };
+        Returns: (AnimalStatusHistoryRow & { changed_by_name: string | null; changed_by_avatar: string | null })[];
+      };
       soft_delete_user: {
         Args: { target_id: string };
         Returns: undefined;
@@ -175,6 +268,7 @@ export type Database = {
       animal_species: AnimalSpecies;
       animal_size: AnimalSize;
       animal_sex: AnimalSex;
+      adocao_status: AdocaoStatus;
       animal_temperament: AnimalTemperament;
       animal_status: AnimalStatus;
     };

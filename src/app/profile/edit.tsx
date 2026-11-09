@@ -14,6 +14,7 @@ export default function EditProfileScreen() {
       initial={user}
       submitLabel="Salvar"
       withRole={can('user:manage')}
+      withAvatar
       onSubmit={async (input) => {
         setUser(await users.update(user, user.id, input));
         router.back();

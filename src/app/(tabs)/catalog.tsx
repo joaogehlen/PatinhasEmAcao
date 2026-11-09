@@ -96,7 +96,7 @@ export default function HomeScreen() {
         </View>
         {user && (
           <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Abrir perfil">
-            <Avatar name={user.name} size={46} />
+            <Avatar name={user.name} uri={user.avatarUrl} size={46} />
           </Pressable>
         )}
       </View>

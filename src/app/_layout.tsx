@@ -104,6 +104,37 @@ function RootNavigator() {
             <Stack.Screen name="vaquinhas/edit/[id]" options={{ title: 'Editar vaquinha' }} />
           </Stack.Protected>
 
+          <Stack.Screen name="avisos" options={{ title: 'Avisos' }} />
+
+          <Stack.Protected guard={can('noticia:view')}>
+            <Stack.Screen
+              name="noticias/[id]"
+              options={{ title: '', headerTransparent: true, headerTintColor: colors.white }}
+            />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('noticia:manage')}>
+            <Stack.Screen name="noticias/new" options={{ title: 'Nova notícia', presentation: 'modal' }} />
+            <Stack.Screen name="noticias/edit/[id]" options={{ title: 'Editar notícia' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('adocao:request') || can('adocao:review')}>
+            <Stack.Screen name="adocoes/[id]" options={{ title: 'Pedido de adoção' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('adocao:request')}>
+            <Stack.Screen name="adocoes/index" options={{ title: 'Meus pedidos de adoção' }} />
+            <Stack.Screen name="adocoes/new/[animalId]" options={{ title: 'Quero adotar', presentation: 'modal' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('adocao:review')}>
+            <Stack.Screen name="adocoes/fila" options={{ title: 'Pedidos de adoção' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={can('user:list')}>
+            <Stack.Screen name="users/index" options={{ title: 'Usuários' }} />
+          </Stack.Protected>
+
           <Stack.Protected guard={can('user:manage')}>
             <Stack.Screen name="users/new" options={{ title: 'Novo usuário', presentation: 'modal' }} />
             <Stack.Screen name="users/[id]" options={{ title: 'Editar usuário' }} />

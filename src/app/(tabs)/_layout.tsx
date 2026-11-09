@@ -10,6 +10,9 @@ import { colors, fonts, rules } from '@/presentation/theme';
  *
  * As demais aparecem conforme a permissão. O convidado fica só com Mapa e
  * Perfil — e é no Perfil que ele encontra o caminho para criar conta.
+ *
+ * Usuários saiu das abas na Sprint 3 para dar lugar ao Mural: a gestão é
+ * tarefa eventual do admin e fica no Perfil dele.
  */
 export default function TabsLayout() {
   const { can, user } = useAuth();
@@ -52,10 +55,10 @@ export default function TabsLayout() {
         />
       </Tabs.Protected>
 
-      <Tabs.Protected guard={can('user:list')}>
+      <Tabs.Protected guard={can('noticia:view')}>
         <Tabs.Screen
-          name="users"
-          options={{ title: 'Usuários', tabBarIcon: ({ color }) => <Icon name="people" size={23} color={color} /> }}
+          name="mural"
+          options={{ title: 'Mural', tabBarIcon: ({ color }) => <Icon name="news" size={23} color={color} /> }}
         />
       </Tabs.Protected>
 

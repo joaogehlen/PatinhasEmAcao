@@ -8,7 +8,7 @@ import { keepLocalPhoto, persistPhoto } from '@/infrastructure/photoStorage';
 import { describeError } from '../format';
 import { colors, radius, rules, spacing } from '../theme';
 import { Icon } from './Icon';
-import { AppText, Button, IconButton } from './ui';
+import { AppText, Avatar, Button, IconButton } from './ui';
 
 type Source = 'camera' | 'library';
 
@@ -23,7 +23,7 @@ const canUseCamera = Platform.OS !== 'web';
  */
 async function pickAndUpload(
   source: Source,
-  options: { multiple?: number; aspect?: [number, number]; folder?: string; defer?: boolean },
+  options: { multiple?: number; aspect?: [number, number]; folder?: string; defer?: boolean; local?: boolean },
 ): Promise<string[]> {
   const permission =
     source === 'camera'
@@ -61,6 +61,11 @@ async function pickAndUpload(
       // A foto sobe para o Storage e o que fica no banco é a URL pública: o
       // registro é lido por outras pessoas, em outros aparelhos.
       // No web a URI é blob: e morre com a aba; lá a foto sobe na hora.
+      // local: quem chama sobe depois (cadastro, antes de existir sessão).
+      if (options.local) {
+        uploaded.push(asset.uri);
+        continue;
+      }
       uploaded.push(
         options.defer && Platform.OS !== 'web'
           ? await keepLocalPhoto(asset.uri)
@@ -73,6 +78,36 @@ async function pickAndUpload(
     }
   }
   return uploaded;
+}
+
+/** Escolha entre câmera e galeria: action sheet no iOS, alerta no resto. */
+function askSource(title: string, pick: (source: Source) => void, remove?: () => void) {
+  if (!canUseCamera && !remove) return pick('library');
+  const labels = [...(canUseCamera ? ['Câmera'] : []), 'Galeria', ...(remove ? ['Remover foto'] : [])];
+  const run = (label: string) => {
+    if (label === 'Câmera') pick('camera');
+    if (label === 'Galeria') pick('library');
+    if (label === 'Remover foto') remove?.();
+  };
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...labels, 'Cancelar'],
+        cancelButtonIndex: labels.length,
+        destructiveButtonIndex: remove ? labels.length - 1 : undefined,
+        title,
+      },
+      (index) => {
+        const label = labels[index];
+        if (label) run(label);
+      },
+    );
+    return;
+  }
+  Alert.alert(title, undefined, [
+    ...labels.map((label) => ({ text: label, onPress: () => run(label) })),
+    { text: 'Cancelar', style: 'cancel' as const },
+  ]);
 }
 
 interface PhotoPickerProps {
@@ -182,23 +217,7 @@ export function PhotoGalleryPicker({ uris, onChange, max, folder, error }: Photo
   const tile = { width: tileSize, height: tileSize };
 
   function chooseSource() {
-    if (!canUseCamera) return void add('library');
-    // Escolha de origem no iOS é action sheet, não alerta.
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Câmera', 'Galeria', 'Cancelar'], cancelButtonIndex: 2, title: 'Adicionar fotos' },
-        (index) => {
-          if (index === 0) void add('camera');
-          if (index === 1) void add('library');
-        },
-      );
-      return;
-    }
-    Alert.alert('Adicionar fotos', undefined, [
-      { text: 'Câmera', onPress: () => void add('camera') },
-      { text: 'Galeria', onPress: () => void add('library') },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    askSource('Adicionar fotos', (source) => void add(source));
   }
 
   return (
@@ -246,7 +265,68 @@ export function PhotoGalleryPicker({ uris, onChange, max, folder, error }: Photo
   );
 }
 
+interface AvatarPickerProps {
+  uri: string | null;
+  name?: string;
+  onChange: (uri: string | null) => void;
+  /**
+   * Devolve a URI do aparelho sem subir. É o caso do cadastro: o Storage exige
+   * sessão, e ela só existe depois que a conta é criada.
+   */
+  local?: boolean;
+}
+
+/** Foto de perfil redonda; tocar troca ou remove. */
+export function AvatarPicker({ uri, name, onChange, local = false }: AvatarPickerProps) {
+  const [busy, setBusy] = useState(false);
+
+  async function pick(source: Source) {
+    setBusy(true);
+    try {
+      const [url] = await pickAndUpload(source, { aspect: [1, 1], folder: 'avatars', local });
+      if (url) onChange(url);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Pressable
+      onPress={() => askSource('Foto de perfil', (source) => void pick(source), uri ? () => onChange(null) : undefined)}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={uri ? 'Trocar foto de perfil' : 'Adicionar foto de perfil'}
+      style={styles.avatarWrap}
+    >
+      <Avatar name={name} uri={uri} size={96} />
+      {busy && (
+        <View style={[StyleSheet.absoluteFill, styles.avatarBusy]}>
+          <ActivityIndicator color={colors.white} />
+        </View>
+      )}
+      <View style={styles.avatarBadge}>
+        <Icon name="camera" size={16} color={colors.onPrimary} />
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  avatarWrap: { alignSelf: 'center', width: 96, height: 96 },
+  avatarBusy: { borderRadius: 48, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  avatarBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   frame: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
   center: { alignItems: 'center', justifyContent: 'center' },
   overlayActions: { position: 'absolute', right: spacing.md, bottom: spacing.md, flexDirection: 'row', gap: spacing.sm },

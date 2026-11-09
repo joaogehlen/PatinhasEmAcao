@@ -1,9 +1,15 @@
 import type { AuthProvider, Clock, CreateUserInput, IdGenerator, SignUpInput } from '@/application/ports';
+import type { Adocao, AdocaoStatus } from '@/domain/entities/Adocao';
 import type { Animal, AnimalStatus, AnimalStatusChange } from '@/domain/entities/Animal';
+import type { Aviso } from '@/domain/entities/Aviso';
+import type { Noticia } from '@/domain/entities/Noticia';
 import type { Vaquinha, VaquinhaEntrada } from '@/domain/entities/Vaquinha';
 import type { User, UserRole } from '@/domain/entities/User';
 import { AuthenticationError, ConflictError } from '@/domain/errors';
+import type { AdocaoFilters, AdocaoRepository } from '@/domain/repositories/AdocaoRepository';
 import type { AnimalFilters, AnimalRepository } from '@/domain/repositories/AnimalRepository';
+import type { AvisoRepository } from '@/domain/repositories/AvisoRepository';
+import type { NoticiaRepository } from '@/domain/repositories/NoticiaRepository';
 import type { UserFilters, UserRepository } from '@/domain/repositories/UserRepository';
 import type { VaquinhaFilters, VaquinhaRepository } from '@/domain/repositories/VaquinhaRepository';
 
@@ -86,6 +92,7 @@ export class FakeAuthProvider implements AuthProvider {
       phone: null,
       role: 'morador',
       isGuest: true,
+      avatarUrl: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -126,6 +133,7 @@ export class FakeAuthProvider implements AuthProvider {
       phone: input.phone,
       role: input.role,
       isGuest: false,
+      avatarUrl: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -251,6 +259,7 @@ export function makeUser(role: UserRole, overrides: Partial<User> = {}): User {
     phone: null,
     role,
     isGuest: false,
+    avatarUrl: null,
     createdAt: fixedClock.nowIso(),
     updatedAt: fixedClock.nowIso(),
     ...overrides,
@@ -285,4 +294,112 @@ export const validAnimalInput = {
   photoUri: null,
   latitude: null,
   longitude: null,
+};
+
+export class InMemoryNoticiaRepository implements NoticiaRepository {
+  readonly rows = new Map<string, Noticia>();
+
+  async list() {
+    return [...this.rows.values()].sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  }
+  async findById(id: string) {
+    return this.rows.get(id) ?? null;
+  }
+  async create(noticia: Noticia) {
+    this.save(noticia);
+  }
+  async update(noticia: Noticia) {
+    this.save(noticia);
+  }
+  async delete(id: string) {
+    this.rows.delete(id);
+  }
+  /** Faz o papel do trigger noticias_unpin_others. */
+  private save(noticia: Noticia) {
+    if (noticia.pinned) for (const [id, row] of this.rows) this.rows.set(id, { ...row, pinned: false });
+    this.rows.set(noticia.id, noticia);
+  }
+}
+
+export class InMemoryAdocaoRepository implements AdocaoRepository {
+  readonly rows = new Map<string, Adocao>();
+
+  async list(filters: AdocaoFilters = {}) {
+    return [...this.rows.values()].filter(
+      (a) =>
+        (!filters.requesterId || a.requesterId === filters.requesterId) &&
+        (!filters.animalId || a.animalId === filters.animalId) &&
+        (!filters.statuses || filters.statuses.includes(a.status)),
+    );
+  }
+  async findById(id: string) {
+    return this.rows.get(id) ?? null;
+  }
+  async create(adocao: Adocao) {
+    this.rows.set(adocao.id, adocao);
+  }
+  async updateStatus(id: string, status: AdocaoStatus, reviewNote: string | null) {
+    this.rows.set(id, { ...this.rows.get(id)!, status, reviewNote });
+  }
+}
+
+export class InMemoryAvisoRepository implements AvisoRepository {
+  readonly rows: Aviso[] = [];
+  calls = 0;
+
+  async list(userId: string) {
+    this.calls++;
+    return this.rows.filter((a) => a.userId === userId);
+  }
+  async countUnread(userId: string) {
+    this.calls++;
+    return this.rows.filter((a) => a.userId === userId && a.readAt === null).length;
+  }
+  async markRead(ids: readonly string[], at: string) {
+    for (const aviso of this.rows) if (ids.includes(aviso.id)) aviso.readAt = at;
+  }
+  async markAllRead(userId: string, at: string) {
+    for (const aviso of this.rows) if (aviso.userId === userId) aviso.readAt = at;
+  }
+}
+
+export function makeAnimal(overrides: Partial<Animal> = {}): Animal {
+  return {
+    id: 'animal-1',
+    name: 'Paçoca',
+    species: 'cachorro',
+    size: 'medio',
+    sex: 'femea',
+    ageMonths: 24,
+    temperament: 'docil',
+    description: 'Cachorra caramelo encontrada na praça.',
+    healthNotes: null,
+    status: 'disponivel',
+    photoUri: null,
+    latitude: null,
+    longitude: null,
+    createdBy: null,
+    createdAt: fixedClock.nowIso(),
+    updatedAt: fixedClock.nowIso(),
+    ...overrides,
+  };
+}
+
+export const validNoticiaInput = {
+  title: 'Mel foi adotada',
+  body: 'Depois de três meses no lar, a Mel ganhou uma família.',
+  coverUri: null,
+  photoUris: [],
+  animalId: null,
+  vaquinhaId: null,
+  pinned: false,
+};
+
+export const validAdocaoInput = {
+  housing: 'casa',
+  hasYard: true,
+  otherAnimals: '',
+  hasChildren: false,
+  experience: 'Já tive dois cachorros.',
+  reason: 'Quero dar um lar para um cachorro adulto.',
 };

@@ -69,13 +69,11 @@ export class SupabaseAnimalRepository implements AnimalRepository {
   }
 
   async statusHistory(animalId: string): Promise<AnimalStatusChange[]> {
-    const { data, error } = await supabase
-      .from('animal_status_history')
-      .select('*')
-      .eq('animal_id', animalId)
-      .order('changed_at', { ascending: true });
+    // Pela função animal_history (0007): traz nome e foto de quem agiu, que a
+    // RLS de profiles esconderia num join feito daqui.
+    const { data, error } = await supabase.rpc('animal_history', { target_animal: animalId });
     if (error) translateError(error);
-    return (data ?? []).map(toStatusChange);
+    return (data ?? []).map((row) => toStatusChange(row));
   }
 }
 

@@ -6,6 +6,7 @@ import { USER_ROLE_LABELS, USER_ROLES, type User, type UserRole } from '@/domain
 import { describeError } from '../format';
 import { colors, radius, roleStyles, spacing } from '../theme';
 import { Icon } from './Icon';
+import { AvatarPicker } from './PhotoPicker';
 import { AppText, Button, Card, FormError, PasswordField, SectionHeader, TextField } from './ui';
 
 interface UserFormProps {
@@ -15,16 +16,27 @@ interface UserFormProps {
   withPassword?: boolean;
   /** Seleção de perfil só aparece para administradores. */
   withRole?: boolean;
+  /** Foto de perfil: só na edição dos próprios dados. */
+  withAvatar?: boolean;
   onSubmit: (input: Record<string, unknown>) => Promise<void>;
   footer?: ReactNode;
 }
 
-export function UserForm({ initial, submitLabel, withPassword = false, withRole = false, onSubmit, footer }: UserFormProps) {
+export function UserForm({
+  initial,
+  submitLabel,
+  withPassword = false,
+  withRole = false,
+  withAvatar = false,
+  onSubmit,
+  footer,
+}: UserFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [email, setEmail] = useState(initial?.email ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [role, setRole] = useState<UserRole>(initial?.role ?? 'morador');
   const [password, setPassword] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initial?.avatarUrl ?? null);
   const isEditing = initial !== undefined;
 
   const [submitting, setSubmitting] = useState(false);
@@ -36,7 +48,14 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
     setError(null);
     setFieldErrors({});
     try {
-      await onSubmit({ name, email, phone, role, ...(withPassword ? { password } : {}) });
+      await onSubmit({
+        name,
+        email,
+        phone,
+        role,
+        ...(withPassword ? { password } : {}),
+        ...(withAvatar ? { avatarUrl } : {}),
+      });
     } catch (err) {
       const described = describeError(err);
       setError(described.message);
@@ -50,6 +69,8 @@ export function UserForm({ initial, submitLabel, withPassword = false, withRole 
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <FormError message={error} />
+
+        {withAvatar && <AvatarPicker uri={avatarUrl} name={name} onChange={setAvatarUrl} />}
 
         <Card>
           <SectionHeader title="Dados pessoais" icon="person" />

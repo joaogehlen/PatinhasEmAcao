@@ -1,5 +1,6 @@
 import type { TextStyle, ViewStyle } from 'react-native';
 
+import type { AdocaoStatus } from '@/domain/entities/Adocao';
 import type { AnimalStatus } from '@/domain/entities/Animal';
 import type { UserRole } from '@/domain/entities/User';
 
@@ -160,4 +161,12 @@ export const roleStyles: Record<UserRole, Tone & { description: string }> = {
     mark: 'Admin',
     description: 'Gerencia animais, status, vaquinhas e usuários.',
   },
+};
+
+/** Pedido de adoção: reaproveita os tons de status, que já passam no contraste. */
+export const adocaoStyles: Record<AdocaoStatus, Tone> = {
+  enviada: { background: '#382B16', text: '#F2C94C', icon: 'mail', mark: 'Enviado' },
+  em_analise: { background: '#16292F', text: '#62BFEA', icon: 'clock', mark: 'Em análise' },
+  aprovada: { background: '#182C24', text: '#55D191', icon: 'check', mark: 'Aprovado' },
+  recusada: { background: '#3A1D1F', text: '#FF7A8A', icon: 'close', mark: 'Recusado' },
 };

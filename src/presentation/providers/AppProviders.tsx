@@ -15,7 +15,7 @@ interface AuthState {
   /** true enquanto a sessão salva ainda está sendo restaurada. */
   isLoading: boolean;
   login: (input: unknown) => Promise<void>;
-  register: (input: unknown) => Promise<void>;
+  register: (input: unknown) => Promise<User>;
   /** Entra sem conta: registra denúncia e acompanha as próprias. */
   continueAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
@@ -38,6 +38,7 @@ const LOCAL_GUEST: User = {
   phone: null,
   role: 'morador',
   isGuest: true,
+  avatarUrl: null,
   createdAt: '',
   updatedAt: '',
 };
@@ -74,7 +75,14 @@ function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => auth.onAuthStateChange((next) => setUser(next ?? LOCAL_GUEST)), [auth]);
 
   const login = useCallback(async (input: unknown) => setUser(await auth.login(input)), [auth]);
-  const register = useCallback(async (input: unknown) => setUser(await auth.register(input)), [auth]);
+  const register = useCallback(
+    async (input: unknown) => {
+      const created = await auth.register(input);
+      setUser(created);
+      return created;
+    },
+    [auth],
+  );
   const continueAsGuest = useCallback(async () => setUser((current) => (current?.isGuest ? current : LOCAL_GUEST)), []);
   const logout = useCallback(async () => {
     await auth.logout();

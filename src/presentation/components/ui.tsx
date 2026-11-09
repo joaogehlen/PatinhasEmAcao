@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -378,7 +379,8 @@ export function Pill({ label, icon, background, color }: { label: string; icon?:
 const AVATAR_INKS = ['#FF7A45', '#E8D5BE', '#F2C94C', '#62BFEA', '#C3A2F0'] as const;
 
 /** Sem nome (convidado), mostra a silhueta genérica de perfil sem foto. */
-export function Avatar({ name, size = 44 }: { name?: string; size?: number }) {
+/** Foto de perfil quando houver; senão as iniciais, e sem nome o ícone de pessoa. */
+export function Avatar({ name, uri, size = 44 }: { name?: string; uri?: string | null; size?: number }) {
   const initials = (name ?? '')
     .split(' ')
     .filter(Boolean)
@@ -397,9 +399,12 @@ export function Avatar({ name, size = 44 }: { name?: string; size?: number }) {
         borderColor: colors.border,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
       }}
     >
-      {name ? (
+      {uri ? (
+        <Image source={{ uri }} contentFit="cover" transition={150} style={{ width: size, height: size }} />
+      ) : name ? (
         <Text style={{ fontFamily: fonts.semibold, fontSize: size * 0.36, color: ink }}>{initials}</Text>
       ) : (
         <Icon name="person" size={size * 0.5} color={colors.textMuted} />

@@ -38,11 +38,11 @@ export class SupabaseUserRepository implements UserRepository {
     return data ? toUser(data) : null;
   }
 
-  /** Só name, phone e role: o e-mail é espelho de auth.users (guard_profile_update recusa). */
+  /** Só name, phone, role e foto: o e-mail é espelho de auth.users (guard_profile_update recusa). */
   async update(user: User): Promise<void> {
     const { error } = await supabase
       .from('profiles')
-      .update({ name: user.name, phone: user.phone, role: user.role })
+      .update({ name: user.name, phone: user.phone, role: user.role, avatar_url: user.avatarUrl })
       .eq('id', user.id);
     if (error) translateError(error);
   }

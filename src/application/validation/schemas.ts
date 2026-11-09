@@ -6,6 +6,8 @@ import {
   ANIMAL_SPECIES,
   ANIMAL_TEMPERAMENTS,
 } from '@/domain/entities/Animal';
+import { HOUSING_TYPES } from '@/domain/entities/Adocao';
+import { MAX_NOTICIA_PHOTOS } from '@/domain/entities/Noticia';
 import { USER_ROLES } from '@/domain/entities/User';
 import { MAX_VAQUINHA_PHOTOS } from '@/domain/entities/Vaquinha';
 
@@ -67,7 +69,10 @@ export const createUserSchema = userProfileSchema.extend({ password });
  * Edição de perfil. Sem e-mail: ele é espelho de auth.users e só muda pelo
  * fluxo de autenticação (com reconfirmação), nunca por update no perfil.
  */
-export const userUpdateSchema = userProfileSchema.omit({ email: true });
+export const userUpdateSchema = userProfileSchema.omit({ email: true }).extend({
+  /** Ausente mantém a foto atual; null remove. */
+  avatarUrl: z.string().url('Foto inválida.').nullable().optional(),
+});
 
 export const loginSchema = z.object({
   email,
@@ -110,6 +115,37 @@ export const vaquinhaEntradaSchema = z.object({
     .max(100_000_000, 'Valor acima do esperado.'),
   note: optionalText(200),
 });
+
+/** Notícia do mural. Vincula um animal OU uma vaquinha, nunca os dois. */
+export const noticiaInputSchema = z
+  .object({
+    title: z.string().trim().min(3, 'Informe o título (mínimo 3 letras).').max(100, 'Máximo de 100 caracteres.'),
+    body: z.string().trim().min(10, 'Escreva a notícia (mínimo 10 caracteres).').max(5000, 'Máximo de 5000 caracteres.'),
+    coverUri: z.string().url('Capa inválida.').nullable(),
+    photoUris: z
+      .array(z.string().url('Foto inválida.'))
+      .max(MAX_NOTICIA_PHOTOS, `No máximo ${MAX_NOTICIA_PHOTOS} fotos.`),
+    animalId: z.string().uuid().nullable(),
+    vaquinhaId: z.string().uuid().nullable(),
+    pinned: z.boolean(),
+  })
+  .refine((data) => data.animalId === null || data.vaquinhaId === null, {
+    message: 'Vincule um animal ou uma vaquinha, não os dois.',
+    path: ['vaquinhaId'],
+  });
+
+/** Formulário de adoção. Os campos espelham as perguntas que a ONG faz hoje no papel. */
+export const adocaoInputSchema = z.object({
+  housing: z.enum(HOUSING_TYPES, { message: 'Selecione o tipo de moradia.' }),
+  hasYard: z.boolean({ message: 'Informe se há pátio.' }),
+  otherAnimals: optionalText(300),
+  hasChildren: z.boolean({ message: 'Informe se há crianças.' }),
+  experience: optionalText(500),
+  reason: z.string().trim().min(10, 'Conte por que quer adotar (mínimo 10 caracteres).').max(1000, 'Máximo de 1000 caracteres.'),
+});
+
+/** Observação do admin ao avaliar o pedido; vai no aviso para quem pediu. */
+export const reviewNoteSchema = optionalText(500);
 
 export type AnimalInputData = z.infer<typeof animalInputSchema>;
 export type UserProfileData = z.infer<typeof userProfileSchema>;

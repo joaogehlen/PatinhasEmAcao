@@ -27,6 +27,8 @@ export interface User {
   role: UserRole;
   /** Sessão anônima. Registra denúncia e acompanha as próprias, nada além. */
   isGuest: boolean;
+  /** URL pública da foto de perfil; null mostra as iniciais. */
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -7,14 +7,11 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,7 +19,8 @@ import { STATUS_LABELS } from '@/domain/entities/Animal';
 import { vaquinhaProgress, vaquinhaRemaining, type Vaquinha, type VaquinhaEntrada } from '@/domain/entities/Vaquinha';
 import { Icon } from '@/presentation/components/Icon';
 import { StatusBadge } from '@/presentation/components/StatusBadge';
-import { AppText, Button, Card, FormError, IconButton, Pill, SectionHeader, TextField } from '@/presentation/components/ui';
+import { PhotoViewer } from '@/presentation/components/PhotoViewer';
+import { AppText, Button, Card, FormError, Pill, SectionHeader, TextField } from '@/presentation/components/ui';
 import { describeError, formatDate, formatDateTime, formatMoney, parseMoney } from '@/presentation/format';
 import { useFocusedQuery } from '@/presentation/hooks/useFocusedQuery';
 import { useKeyboardVisible } from '@/presentation/hooks/useKeyboardVisible';
@@ -433,52 +431,6 @@ function EntradaForm({ vaquinhaId, onSaved }: { vaquinhaId: string; onSaved: () 
   );
 }
 
-/** Foto em tela cheia, deslizando entre as da galeria. */
-function PhotoViewer({ uris, index, onClose }: { uris: string[]; index: number | null; onClose: () => void }) {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  // Mantém a última foto montada durante o fade de saída, em vez de piscar preto.
-  const [shown, setShown] = useState(index ?? 0);
-  const [current, setCurrent] = useState(index ?? 0);
-  if (index !== null && index !== shown) {
-    setShown(index);
-    setCurrent(index);
-  }
-
-  return (
-    <Modal visible={index !== null} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.viewer}>
-        {uris.length > 0 && (
-          <FlatList
-            key={shown}
-            data={uris}
-            keyExtractor={(uri) => uri}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            initialScrollIndex={Math.min(shown, uris.length - 1)}
-            onMomentumScrollEnd={(event) => setCurrent(Math.round(event.nativeEvent.contentOffset.x / width))}
-            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} contentFit="contain" style={{ width, height }} />
-            )}
-          />
-        )}
-        {uris.length > 1 && (
-          <View style={[styles.viewerCounter, { top: insets.top + spacing.md + 12 }]}>
-            <AppText variant="label" color={colors.white}>
-              {current + 1}/{uris.length}
-            </AppText>
-          </View>
-        )}
-        <View style={[styles.viewerClose, { top: insets.top + spacing.md }]}>
-          <IconButton icon="close" variant="glass" accessibilityLabel="Fechar foto" onPress={onClose} />
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   hero: { height: 300, backgroundColor: colors.primarySoft },
@@ -573,8 +525,4 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     ...shadows.floating,
   },
-
-  viewer: { flex: 1, backgroundColor: '#000' },
-  viewerClose: { position: 'absolute', right: spacing.lg },
-  viewerCounter: { position: 'absolute', left: spacing.lg },
 });

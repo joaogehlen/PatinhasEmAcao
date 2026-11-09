@@ -44,6 +44,10 @@ const ICONS = {
   map: { ios: 'map.fill', android: 'map' },
   donate: { ios: 'heart.circle.fill', android: 'volunteer_activism' },
   copy: { ios: 'doc.on.doc.fill', android: 'content_copy' },
+  news: { ios: 'newspaper.fill', android: 'newspaper' },
+  bell: { ios: 'bell.fill', android: 'notifications' },
+  pin: { ios: 'pin.fill', android: 'push_pin' },
+  list: { ios: 'list.bullet', android: 'list' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

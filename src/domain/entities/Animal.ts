@@ -88,5 +88,8 @@ export interface AnimalStatusChange {
   note: string | null;
   /** Autor da mudança; null se a conta foi excluída. */
   changedBy: string | null;
+  /** Nome e foto de quem agiu, para a linha do tempo. null para convidado ou conta excluída. */
+  changedByName?: string | null;
+  changedByAvatar?: string | null;
   changedAt: string;
 }
